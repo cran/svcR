@@ -21,6 +21,8 @@ library(quadprog)
 library(ade4)
 library(spdep)
 
+envir=globalenv();
+
 ########################################################################
 # Constants
 ########################################################################
@@ -85,9 +87,8 @@ MaxX = MaxY = 0;
 MinX = MinY = 10000000;					
 
 #Control file
-fileName   = "sortie.txt";
-FileOutput = 0;
-FileOutput <- file( paste(tempdir(),"\\",fileName, sep='') , "w");		# open an output file connection
+fileName   = 0;
+FileOutput = 0;						  # output connection
 
 Precision  = 0;
 
@@ -98,7 +99,6 @@ Precision  = 0;
 # Usage:
 #   findModelCluster(MetOpt=1, MetLab=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris", fileIn="D:\\R\\library\\svcR\\")
 #
-envir=globalenv();
 
 findModelCluster<- function (
   MetOpt="",				# method stoch (1) or quadprog (2)
@@ -120,7 +120,8 @@ assign("Ngrid", G,  env=envir, inherits = TRUE);
 assign("Knn",   K,  env=envir, inherits = TRUE);
 TimeNow    <- proc.time();			# catch time reference
 #MemBeg     <- memory.size(max = FALSE);		# catch memory reference
-FileOutput <- file(fileName, "w");		# open an output file connection
+fileName = file.path(tempdir(), "sortie.txt");
+assign( "FileOutput", file(fileName, "w"), env=envir, inherits= TRUE );		# open an output file connection
 #Data Grid structure
 assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
 assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
@@ -153,7 +154,7 @@ Alert("", "ok", "\n");
 
 Alert("", "kernel matrix...", "\t\t");
 assign("MaxValA", 1/(get("nu", env=envir, inherits=TRUE)*nrow(Matrice$Mat)), env=envir, inherits= TRUE ) ; 
-#cat("MaxValA", '\n', get("MaxValA", env=envir, inherits=TRUE), file=FileOutput);
+#cat("MaxValA", '\n', get("MaxValA", env=envir, inherits=TRUE), file=get("FileOutput", env=envir, inherits=TRUE));
 MatriceK   <- calcKernelMatrix(Matrice$Mat);						# kernel matrix computation
 Alert("", "ok", "\n");
 
@@ -175,7 +176,7 @@ if(MetLab == 1 ) {
 	Alert("", "grid labeling...", "\n"); 
 	Alert("\t\t", "grid clustering...", "");
 	NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, cx, cy, WYA=WVectorsYA$A);	# clusters assignment
-	Alert("\t\t", "ok", "\n");
+	Alert("\t", "ok", "\n");
 	Alert("\t\t", "match grid...", ""); 
 	ClassPoints   = MatchGridPoint(Mat=Matrice$Mat, NumCluster=NumberCluster, Cx=cx, Cy=cy, Knn=K);  # cluster assignment
 	Alert("\t\t", "ok", "\n");
@@ -205,7 +206,7 @@ else {
 }
 
 Alert("", "export...", "\t\t\t");
-ExportClusters(MatriceVar=Matrice$Var, CPoints=ClassPoints, DName=DName, pathOut=fileIn);
+ExportClusters(MatriceVar=Matrice$Var, CPoints=ClassPoints, DName=DName, pathOut=tempdir());
 Alert("", "ok", "\n");
 
 Alert("", "display...", "\t\t\t");
@@ -220,7 +221,7 @@ print("time consuming");print(proc.time() - TimeNow);	# output time consuming
 #print("Max Memory");print(GMHmax);
 #print("Memory At Beginning");print(MemBeg);		# output memory consuming
 #print("Memory Consuming");print(GMHmax-MemBeg);		# output memory consuming
-close(FileOutput);
+close( get("FileOutput", env=envir, inherits=TRUE) );
 
 return("end-of-routine");
 }
@@ -244,7 +245,7 @@ DisplayData<- function (
     ) {
 
 # plot the data matrix
-#cat("matrix", "\n", file=FileOutput); write(as.matrix(Mat), sep="\t", file=FileOutput);					
+#cat("matrix", "\n", file=get("FileOutput", env=envir, inherits=TRUE)); write(as.matrix(Mat), sep="\t", file=get("FileOutput", env=envir, inherits=TRUE));					
 
 # plot Y class in the case of an svm
 if( WYA$Y[1] != "" )
@@ -266,7 +267,7 @@ if( WYA$A[1] != "" )
 plot(Mat[,Cx],Mat[,ncol(Mat)], xlab="data points", ylab="classes in data matrix")
 
 SV = ListSVPoints(VA=WYA$A);			# list of support vectors
-#cat("list des SV", '\n', file=FileOutput); write(t(SV), file=FileOutput); 
+#cat("list des SV", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write(t(SV), file=get("FileOutput", env=envir, inherits=TRUE)); 
 for(i in 1:length(SV) ) {				
 		ISV = SV[i];
 		if( !is.na(ISV) )
@@ -325,7 +326,7 @@ for(i in 1:length(Mat$Sparse[,1]) ){	# we fill the full matrix
 		Mat$Mat[IndiceLine,IndiceCol] = Val;
 }#finfori
 
-#write( "Matrice$Mat \n", file=FileOutput); write( t(Mat$Mat), sep="\t", file=FileOutput);
+#write( "Matrice$Mat \n", file=get("FileOutput", env=envir, inherits=TRUE)); write( t(Mat$Mat), sep="\t", file=get("FileOutput", env=envir, inherits=TRUE));
 		
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -350,7 +351,7 @@ NRows = nrow(matrix);
 
 MatriceKernel = matrix(data = 0, nrow = NRows, ncol = NRows, byrow = FALSE, dimnames = NULL)
 
-#cat( "NCols", '\t', NCols, '\t', "NRows", NRows, file=FileOutput); 
+#cat( "NCols", '\t', NCols, '\t', "NRows", NRows, file=get("FileOutput", env=envir, inherits=TRUE)); 
 i <- 1; j <- 1;
 for(i in 1:NRows) {
   for( j in i:NRows) {
@@ -483,8 +484,8 @@ ConstraintCluster1<- function (
 N <- length(VecteurA);
 for( i in 1:N ) {
 	if( VecteurA[i] < 0 || VecteurA[i]  > BoundS ){
-		#write("beta_i \n", file=FileOutput); write(VecteurA[i], file=FileOutput);  
-		#cat("\n BoundS \t", BoundS, '\n', file=FileOutput);
+		#write("beta_i \n", file=get("FileOutput", env=envir, inherits=TRUE)); write(VecteurA[i], file=get("FileOutput", env=envir, inherits=TRUE));  
+		#cat("\n BoundS \t", BoundS, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 		return( 0 );
 	} #endif
 } #fin for i
@@ -508,7 +509,7 @@ ConstraintCluster2<- function (
 
 Sum   <- 0;
 Sum = sum( VecteurA );
-#cat("Sum", '\n', Sum, file=FileOutput);
+#cat("Sum", '\n', Sum, file=get("FileOutput", env=envir, inherits=TRUE));
 
 #if( Sum != 1 )  #en theorie
 if( (Sum >  (1 + AroundNull)) || (Sum < (1 - AroundNull)) )  #en pratique
@@ -561,8 +562,8 @@ while( sum(COEFFS) < (1 - AroundNull) && i <= Dim ) {
 	i		= i+1;
 } #finwhile
 
-cat( "MaxValA", get("MaxValA", env=envir, inherits=TRUE), '\t', "Sum MaxValA", length(COEFFS)*get("MaxValA", env=envir, inherits=TRUE), '\n');
-cat( "sum(COEFFS)", sum(COEFFS), '\t', "1 + AroundNull", (1 + AroundNull), '\t', "1 - AroundNull", (1 - AroundNull), '\n' );
+#cat( "MaxValA", get("MaxValA", env=envir, inherits=TRUE), '\t', "Sum MaxValA", length(COEFFS)*get("MaxValA", env=envir, inherits=TRUE), '\n');
+#cat( "sum(COEFFS)", sum(COEFFS), '\t', "1 + AroundNull", (1 + AroundNull), '\t', "1 - AroundNull", (1 - AroundNull), '\n' );
 
 return(COEFFS);
 }
@@ -594,7 +595,7 @@ MaxValA		<- get("MaxValA", env=envir, inherits=TRUE);
 
 if( nu && N )
 	BoundSup = MaxValA ; # 1 / ( nu * N );
-#cat("BoundSup ", BoundSup, "\n", file=FileOutput);
+#cat("BoundSup ", BoundSup, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 
 TabWPrec = MinW;
 
@@ -602,10 +603,10 @@ while( (W > TabWPrec &&  Iter <= MaxIter) ||  (Iter <= MaxIter) ) {
 	
 	PreviousW = W;
 	W         = CritereWcluster(VecteurA=WYA$A, MatrixK=MatriceKern);
-	#cat("Iter=", Iter, '\n', file=FileOutput);
+	#cat("Iter=", Iter, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 
 	if( Iter > 1 ){
-		ValW   = paste("TabW[",Iter-1, "]", sep=""); print("just");
+		ValW   = paste("TabW[",Iter-1, "]", sep=""); 
 		TabWPrec <- get(ValW, env=envir, inherits=TRUE);
 		}
 	
@@ -631,8 +632,8 @@ while( (W > TabWPrec &&  Iter <= MaxIter) ||  (Iter <= MaxIter) ) {
 	Iter      = Iter + 1;
 } #finwhile
 
-#cat("A", '\n', file=FileOutput); write(t(WYA$A), file=FileOutput);
-#cat("W", '\n', t(TabW[Iter-1]) , file=FileOutput); write(t(TabW[Iter-1]) , file=FileOutput);
+#cat("A", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write(t(WYA$A), file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("W", '\n', t(TabW[Iter-1]) , file=get("FileOutput", env=envir, inherits=TRUE)); write(t(TabW[Iter-1]) , file=get("FileOutput", env=envir, inherits=TRUE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -662,7 +663,7 @@ MaxValA	<- get("MaxValA", env=envir, inherits=TRUE);
 BoundSup <- 1E+10;
 if( nu && N )
 	BoundSup = MaxValA ; # 1 / ( nu * N );
-#cat("BoundSup", BoundSup, "\n", file=FileOutput);
+#cat("BoundSup", BoundSup, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 
 Dmat <- 2*MatriceKern;
 dvec <- diag(MatriceKern);
@@ -677,8 +678,8 @@ S <- solve.QP(Dmat,-dvec,t(Amat),t(bvec), meq=1, factorized=TRUE);
 WYA$A  <- S$solution;
 WYA$W <- S$value;
 
-#cat( "WYA$A", '\n', file=FileOutput); write( t(WYA$A) , file=FileOutput);
-#cat( "WYA$W", '\n', file=FileOutput); write( t(WYA$W) , file=FileOutput);
+#cat( "WYA$A", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(WYA$A) , file=get("FileOutput", env=envir, inherits=TRUE));
+#cat( "WYA$W", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(WYA$W) , file=get("FileOutput", env=envir, inherits=TRUE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -743,7 +744,7 @@ VecW <- 0;
 for(i in 1:nrow(Mat) ) {
 	VecW = VecW + WYA$A[i]*Mat[i,1:(ncol(Mat)-1)];
 } #fin for i
-#cat("VecW", '\t', file=FileOutput); write(t(VecW), file=FileOutput);
+#cat("VecW", '\t', file=get("FileOutput", env=envir, inherits=TRUE)); write(t(VecW), file=get("FileOutput", env=envir, inherits=TRUE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -769,7 +770,7 @@ ro <- 0;
 for(i in 1:nrow(Mat) ) {
 	ro = ro + WYA$A[i]*Kernel(Vec1=VecW, Vec2=Mat[i,1:(ncol(Mat)-1)], Choice=1);
 } #fin for i
-#cat("ro", '\n', ro, file=FileOutput);
+#cat("ro", '\n', ro, file=get("FileOutput", env=envir, inherits=TRUE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -810,14 +811,14 @@ if( IndiceSV == 0) for(i in 1:N ) {
 	} #endif
 } #finfori
 
-cat(IndiceSV, '\n');
+#cat(IndiceSV, '\n');
 if( IndiceSV != 0 ) {
 	R = RadiusData(IndicePoint=IndiceSV, VA=VA, MatK=MatrixK);
-	#cat("indiceSV=", IndiceSV, '\t', "R=", R, '\n', file=FileOutput);
+	#cat("indiceSV=", IndiceSV, '\t', "R=", R, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 }
 else {	
 	R = 0;
-	#cat("IndiceSV = 0", "\t", "AroundNullVA", AroundNullVA, "\t", "N=", N, '\n', file=FileOutput);
+	#cat("IndiceSV = 0", "\t", "AroundNullVA", AroundNullVA, "\t", "N=", N, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 } #finif
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
@@ -936,7 +937,7 @@ for( i in 1:N ) {
 		if( R > RC )
 			r[i] =  R*R - RC*RC;
 	} #finif
-	#cat("RadiusC", RC, "\t", "R", R, "\t", "ri", r[i], '\n', file=FileOutput);
+	#cat("RadiusC", RC, "\t", "R", R, "\t", "ri", r[i], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 } #finfor
 
 # calculation of the mean and the max
@@ -1050,7 +1051,7 @@ while( j < length(ListIndice) ) {
 	
 } # finwhile ListIndice
 
-#cat( "AdjacencyM", '\n', AdjacencyM, file=FileOutput);
+#cat( "AdjacencyM", '\n', AdjacencyM, file=get("FileOutput", env=envir, inherits=TRUE));
 
 print("fin adjacency");
 
@@ -1127,7 +1128,7 @@ while( IndRow < nrow(MatAdj01) ){
 
 Alert("\t\t", "...ok", "\n");
 
-#cat("ListItemCluster", '\n', file=FileOutput); write( t(ListItemCluster), file=FileOutput);
+#cat("ListItemCluster", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ListItemCluster), file=get("FileOutput", env=envir, inherits=TRUE));
 
 return ( ListItemCluster );
 }
@@ -1193,7 +1194,7 @@ while( IndRow < nrow(MatAdj01) ){
 
 Alert("\t\t", "...end knn", "\n");
 
-#cat("ListItemCluster", '\n', file=FileOutput); write( t(ListItemCluster), file=FileOutput);
+#cat("ListItemCluster", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ListItemCluster), file=get("FileOutput", env=envir, inherits=TRUE));
 
 return ( ListItemCluster );
 }
@@ -1239,7 +1240,7 @@ Evaluation<- function (
 #output points class
 NumColClass = ncol(Mat);
 #for(i in 1:nrow(Mat) ){
-# cat("N=", '\t', i, "\t", "i=", Mat[i, Cx], "\t", "j=", Mat[i, Cy], "\t", "C=", ClassPoints[i], "\t", "Cdata=", Mat[i, NumColClass], '\n', file=FileOutput);
+# cat("N=", '\t', i, "\t", "i=", Mat[i, Cx], "\t", "j=", Mat[i, Cy], "\t", "C=", ClassPoints[i], "\t", "Cdata=", Mat[i, NumColClass], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 #} #finfori
 
 ListSortedItemsByClass  = sort( Mat[, NumColClass] );
@@ -1262,7 +1263,7 @@ for(i in 2:nrow(Mat) ){
 
 } #finfori
 
-#cat("labelclass", '\n', LabelClass, '\n', "Cardlabelclass", '\n' , CardLabelClass, file=FileOutput);
+#cat("labelclass", '\n', LabelClass, '\n', "Cardlabelclass", '\n' , CardLabelClass, file=get("FileOutput", env=envir, inherits=TRUE));
 
 BestClass <- matrix(data = NA, nrow = NBClass, ncol = 2, byrow = FALSE, dimnames = NULL); 
 ListVecClass = list();
@@ -1277,7 +1278,7 @@ for(i in 1:nrow(Mat) ){
 for( IndClass in 1:NBClass ) {
 	VecClassSorted = sort(  ListVecClass[[ as.numeric(LabelClass[IndClass]) ]]  );
 	Counter = 1; BestClass[IndClass, 2] = 1; BestClass[IndClass, 1] = VecClassSorted[ 1 ];
-	#cat( "VecClassSorted", '\n' , file=FileOutput); write( t(VecClassSorted), file=FileOutput);
+	#cat( "VecClassSorted", '\n' , file=get("FileOutput", env=envir, inherits=TRUE)); write( t(VecClassSorted), file=get("FileOutput", env=envir, inherits=TRUE));
 	if( length(VecClassSorted) >= 2 )
 	for( IndVecSorted in 2:length(VecClassSorted) ) {
 		if( VecClassSorted[ IndVecSorted ] == VecClassSorted[ IndVecSorted - 1] ) {
@@ -1286,7 +1287,7 @@ for( IndClass in 1:NBClass ) {
 				BestClass[IndClass, 2] = Counter;
 				BestClass[IndClass, 1] = VecClassSorted[ IndVecSorted - 1];
 			} #finif
-			#cat("counter", Counter, "\t", "BestClass[IndClass, 2]", BestClass[IndClass, 2], "\t", "BestClass[IndClass, 1]", BestClass[IndClass, 1], '\n', file=FileOutput);
+			#cat("counter", Counter, "\t", "BestClass[IndClass, 2]", BestClass[IndClass, 2], "\t", "BestClass[IndClass, 1]", BestClass[IndClass, 1], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 		} 
 		else {
 			Counter = 1;
@@ -1295,21 +1296,21 @@ for( IndClass in 1:NBClass ) {
 	} #finIndVecSorted
 }#finIndClass
 
-#cat("BestClass", '\n', BestClass, file=FileOutput);
+#cat("BestClass", '\n', BestClass, file=get("FileOutput", env=envir, inherits=TRUE));
 
 Precision  <- 0;
 for(IndClass in 1:NBClass )  if( BestClass[IndClass, 1] != 0 )
 	Precision <- Precision + BestClass[IndClass, 2];
 Precision <- ( Precision/nrow(Mat) ) * 100;
 assign("Precision", Precision, env=envir, inherits = TRUE);
-#options(digits=3); cat("Precision=", Precision, "% \n", file=FileOutput);
+#options(digits=3); cat("Precision=", Precision, "% \n", file=get("FileOutput", env=envir, inherits=TRUE));
 
 #extraction of misclassified items
 ListMis = vector(); IndListMis = 1;
 for( i in 1:nrow(Mat) ) {
 	for( IndClass in 1:NBClass ) {
 		if( Mat[i, NumColClass] == as.numeric(LabelClass[IndClass]) ){
-			#cat("best", '\t', BestClass[IndClass, 1], "\t class", ClassPoints[i], '\n', file=FileOutput);
+			#cat("best", '\t', BestClass[IndClass, 1], "\t class", ClassPoints[i], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 			if( BestClass[IndClass, 1] != ClassPoints[i] || BestClass[IndClass, 1] == 0 ) {
 				ListMis[IndListMis] = i ;
 				IndListMis          = IndListMis + 1;
@@ -1318,7 +1319,7 @@ for( i in 1:nrow(Mat) ) {
 	}#endforIndVec
 } #finFor
 
-#write("ListMis \n", file=FileOutput); write( t(ListMis), file=FileOutput);
+#write("ListMis \n", file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ListMis), file=get("FileOutput", env=envir, inherits=TRUE));
 
 return(ListMis);
 
@@ -1368,8 +1369,8 @@ for(i in 1:N ){
 		RC = get("RadiusC", env=envir, inherits=TRUE);
 		r  = get("r", env=envir, inherits=TRUE);
 
-		#cat("i", i,"\t", "j", j,"  ", "RadiusC", RC, "\t", file=FileOutput);
-		#cat("r", r, "\t", "x", x, "\t", "y", y, "\t", "R", R, "\n", file=FileOutput);
+		#cat("i", i,"\t", "j", j,"  ", "RadiusC", RC, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
+		#cat("r", r, "\t", "x", x, "\t", "y", y, "\t", "R", R, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 
 		if(   (RC*RC + r) >=  R*R ){
 			points(x, y, pch = 24, col = "yellow", bg = "yellow", cex = 1);
@@ -1429,7 +1430,7 @@ MinX = get("MinX", env=envir, inherits=TRUE);
 MaxY = get("MaxY", env=envir, inherits=TRUE);
 MinY = get("MinY", env=envir, inherits=TRUE);
 
-#cat("MaxX", '\t', MaxX, "MinX", '\t', MinX, '\n', file=FileOutput); 
+#cat("MaxX", '\t', MaxX, "MinX", '\t', MinX, '\n', file=get("FileOutput", env=envir, inherits=TRUE)); 
 
 if( MinX == MaxX || MinY == MaxY ){
 	print("impossible to compute the grid");
@@ -1562,8 +1563,8 @@ for(i in 1:N ){
 		InP = get( PG , env=envir, inherits=TRUE);
 		NM3 = paste("NumPoints[",InP,"][[1]][3]", sep="");
 		NM5 = paste("NumPoints[",InP,"][[1]][5]", sep="");
-		#cat("N=", InP, "i=", i, "\t j=", j, "\t", "NumPoints=", get(NM3, env=envir, inherits=TRUE), "\t", file=FileOutput);
-		#cat("NumCluster=", get(NM5, env=envir, inherits=TRUE), "\n", file=FileOutput);
+		#cat("N=", InP, "i=", i, "\t j=", j, "\t", "NumPoints=", get(NM3, env=envir, inherits=TRUE), "\t", file=get("FileOutput", env=envir, inherits=TRUE));
+		#cat("NumCluster=", get(NM5, env=envir, inherits=TRUE), "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 	}
 }
 
@@ -1587,11 +1588,11 @@ for(i in 1:N ){
 				NM5_InP = paste("NumPoints[",InP,"][[1]][5]", sep="");
 				NM5_Cur = paste("NumPoints[",ActualPoint,"][[1]][5]", sep="");
 				if( get(NM5_InP, env=envir, inherits=TRUE) != 0 && get(NM5_Cur, env=envir, inherits=TRUE) != 0 ) { 
-					#cat("ii", ii, "\t", "jj", jj, "\t", "C1=", get(NM5_InP, env=envir, inherits=TRUE), "\t", file=FileOutput);
-					#cat("C2=", get(NM5_Cur, env=envir, inherits=TRUE), "\t", "i=", InP, "\t j=", ActualPoint, "\n", file=FileOutput);
+					#cat("ii", ii, "\t", "jj", jj, "\t", "C1=", get(NM5_InP, env=envir, inherits=TRUE), "\t", file=get("FileOutput", env=envir, inherits=TRUE));
+					#cat("C2=", get(NM5_Cur, env=envir, inherits=TRUE), "\t", "i=", InP, "\t j=", ActualPoint, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 					k = as.integer(get(NM5_InP, env=envir, inherits=TRUE));
 					l = as.integer(get(NM5_Cur, env=envir, inherits=TRUE));
-					#cat("k=", k, "\t", "l=", l, "\n", file=FileOutput);
+					#cat("k=", k, "\t", "l=", l, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 					ClassConnex[ k, l ] = 1;
 				}#endif
 			} #endforjj
@@ -1601,14 +1602,14 @@ for(i in 1:N ){
 
 } #endifNmat
 
-#cat( "ClassConnex", '\n', file=FileOutput); write( t(ClassConnex), sep='\t', file=FileOutput);
+#cat( "ClassConnex", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ClassConnex), sep='\t', file=get("FileOutput", env=envir, inherits=TRUE));
 
 #deletion of bad classes
 IndClassFusIn  = 0;
 IndClassFusOut = NumberCluster;
 while( IndClassFusOut > 1) {
 	
-	cat("IndClassFusOut", IndClassFusOut, "length(ListClusters)", length(ListClusters), '\n');
+	#cat("IndClassFusOut", IndClassFusOut, "length(ListClusters)", length(ListClusters), '\n');
 
 	for(indColMatConnex in 1:(IndClassFusOut-1) ) if( ClassConnex[ indColMatConnex, IndClassFusOut ] == 1 ) {
 	
@@ -1638,8 +1639,8 @@ for(i in 1:(N*N) ){
 	NM2 = paste("NumPoints[",i,"][[1]][2]", sep="");
 	NM3 = paste("NumPoints[",i,"][[1]][3]", sep="");
 	NM5 = paste("NumPoints[",i,"][[1]][5]", sep="");
-	#cat("N=", i, "\t", "i=", get(NM2, env=envir, inherits=TRUE), "\t", "j=", get(NM3, env=envir, inherits=TRUE), "\t", file=FileOutput);
-	#cat("InBal=", get(NM4, env=envir, inherits=TRUE), "\t", "C=", get(NM5, env=envir, inherits=TRUE), "\n", file=FileOutput);
+	#cat("N=", i, "\t", "i=", get(NM2, env=envir, inherits=TRUE), "\t", "j=", get(NM3, env=envir, inherits=TRUE), "\t", file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("InBal=", get(NM4, env=envir, inherits=TRUE), "\t", "C=", get(NM5, env=envir, inherits=TRUE), "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 } #finfori
 
 ##### end of computation
@@ -1672,7 +1673,7 @@ MaxY   = get("MaxY", env=envir, inherits=TRUE);
 MinY   = get("MinY", env=envir, inherits=TRUE);
 
 ClassPoints      <- array(0, NPoint ); 
-#cat("N ", NPoint, '\t', "NumCluster ", NumCluster, '\t', "knn ", Knn, '\n', file=FileOutput);
+#cat("N ", NPoint, '\t', "NumCluster ", NumCluster, '\t', "knn ", Knn, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
 
 if( NumCluster > 0)
 for(i in 1:NPoint ){
@@ -1685,8 +1686,8 @@ for(i in 1:NPoint ){
 	ScoreNeighbours  <- array(0, NumCluster );
 
         NM5 = paste("NumPoints[",InP,"][[1]][5]", sep="");
-	#cat("N=", i, "\t", "Xi=", Xi, "\t", "Yi=", Yi, "\t", file=FileOutput);
-	#cat("InP=", InP, "\t", "Class=", get(NM5, env=envir, inherits=TRUE), "\n", file=FileOutput);
+	#cat("N=", i, "\t", "Xi=", Xi, "\t", "Yi=", Yi, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("InP=", InP, "\t", "Class=", get(NM5, env=envir, inherits=TRUE), "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 
 	for(ii in (Xi-1):(Xi+1)){
 			for(jj in (Yi-1):(Yi+1)) {
@@ -1702,16 +1703,16 @@ for(i in 1:NPoint ){
 					if( get(NM_Cur, env=envir, inherits=TRUE) != 0 ){
 						NumClass                  = as.integer(get(NM_Cur, env=envir, inherits=TRUE));
 						ScoreNeighbours[NumClass] <- ScoreNeighbours[NumClass] + 1 ;
-						#cat("N=", i, "\t", "Class=", NumClass, "\t", file=FileOutput);
-						#cat("ScoreNeighbours=", ScoreNeighbours[ NumClass ], "\n", file=FileOutput);
+						#cat("N=", i, "\t", "Class=", NumClass, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
+						#cat("ScoreNeighbours=", ScoreNeighbours[ NumClass ], "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 					}#endif
 				}#endif
 			} #endforjj
 	} #endforii
 
 	for(IndNumClass in 1:NumCluster ){
-		#cat("N=", IndNumClass, "\t", "length(ListClusters)=", NumCluster, "\t", file=FileOutput);
-		#cat("i=", i, "\t", "ScoreNeighbours=", ScoreNeighbours[ IndNumClass ], "\n", file=FileOutput);
+		#cat("N=", IndNumClass, "\t", "length(ListClusters)=", NumCluster, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
+		#cat("i=", i, "\t", "ScoreNeighbours=", ScoreNeighbours[ IndNumClass ], "\n", file=get("FileOutput", env=envir, inherits=TRUE));
 		if( ScoreNeighbours[ IndNumClass ] >= Knn )
 			ClassPoints[i] = IndNumClass;	
 	} #endforIndNumClass
@@ -1821,7 +1822,8 @@ assign("q",     q,  env=envir, inherits = TRUE);
 assign("Ngrid", G,  env=envir, inherits = TRUE);
 assign("Knn",   K,  env=envir, inherits = TRUE);
 GlobalTime = 0;
-FileOutput <- file(fileName, "w");		# open an output file connection
+fileName = paste(tempdir(),"\\","sortie.txt", sep='');
+assign( "FileOutput", file(fileName, "w") , env=envir, inherits=TRUE);		# open an output file connection
 AvPrecision = 0;
 #Data Grid structure
 assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
@@ -1884,10 +1886,10 @@ for( IndMat in 1:10 ) {
 	Alert("", "ok", "\n");
 
 	if(MetLab == 1 ) {
-		Alert("", "grid labeling...", ""); 
-		Alert("\t\t", "grid clustering...", "\n");
+		Alert("", "grid labeling...", "\n"); 
+		Alert("\t\t", "grid clustering...", "");
 		NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, cx, cy, WYA=WVectorsYA$A);	# clusters assignment
-		Alert("\t\t", "ok", "\n");
+		Alert("\t", "ok", "\n");
 		Alert("\t\t", "match grid...", ""); 
 		ClassPoints   = MatchGridPoint(Mat=MatriceTest, NumCluster=NumberCluster, Cx=cx, Cy=cy, Knn=K);  # cluster assignment
 		Alert("\t\t", "ok", "\n");
@@ -1918,9 +1920,9 @@ for( IndMat in 1:10 ) {
 
 } #EndforIndMat
 
-options(digits=3); cat ("PrecisionGlobale=", AvPrecision/10, "% \t", "\n", sep="", file=FileOutput);
+options(digits=3); cat ("PrecisionGlobale=", AvPrecision/10, "% \t", "\n", sep="", file=get("FileOutput", env=envir, inherits=TRUE));
 print("time consuming per process"); print(GlobalTime/10);	# output time consuming
-close(FileOutput);
+close(get("FileOutput", env=envir, inherits=TRUE));
 
 return("end-of-routine");
 
@@ -1954,7 +1956,8 @@ assign("q",     q,  env=envir, inherits = TRUE);
 assign("Ngrid", G,  env=envir, inherits = TRUE);
 assign("Knn",   K,  env=envir, inherits = TRUE);
 GlobalTime = 0;
-FileOutput <- file(fileName, "w");		# open an output file connection
+fileName = paste(tempdir(),"\\","sortie.txt", sep='');
+assign( "FileOutput", file(fileName, "w") , env=envir, inherits=TRUE);		# open an output file connection
 #Data Grid structure
 assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
 assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
@@ -2014,7 +2017,7 @@ if(MetLab == 1 ) {
 	Alert("", "grid labeling...", "\n"); 
 	Alert("\t\t", "grid clustering...", "");
 	NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, cx, cy, WYA=WVectorsYA$A);	# clusters assignment
-	Alert("\t\t", "ok", "\n");
+	Alert("\t", "ok", "\n");
 	Alert("\t\t", "match grid...", ""); 
 	ClassPoints   = MatchGridPoint(Mat=MatriceEval, Points=NumPoints, Grid=PointGrid, NumCluster=NumberCluster, Cx=cx, Cy=cy, Knn=K);  # cluster assignment
 	Alert("\t\t", "ok", "\n");
@@ -2042,9 +2045,9 @@ else if( MetLab == 3 ){
 
 invisible(gc());					# freeing memory
 GlobalTime = ( proc.time() - TimeNow ) ;
-options(digits=3); cat ("PrecisionGlobale=", Precision, "% \t", "\n", sep="", file=FileOutput);
+options(digits=3); cat ("PrecisionGlobale=", Precision, "% \t", "\n", sep="", file=get("FileOutput", env=envir, inherits=TRUE));
 print("time consuming"); print(GlobalTime);	# output time consuming
-close(FileOutput);
+close(get("FileOutput", env=envir, inherits=TRUE));
 
 return("end-of-routine");
 
@@ -2078,7 +2081,8 @@ assign("q",     q,  env=envir, inherits = TRUE);
 assign("Ngrid", G,  env=envir, inherits = TRUE);
 assign("Knn",   K,  env=envir, inherits = TRUE);
 GlobalTime = 0;
-FileOutput <- file(fileName, "w");		# open an output file connection
+fileName = paste(tempdir(),"\\","sortie.txt", sep='');
+assign( "FileOutput", file(fileName, "w"), env=envir, inherits=TRUE );		# open an output file connection
 #Data Grid structure
 assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
 assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
@@ -2092,7 +2096,7 @@ MM = Matrice$Mat
 Alert("", "ok", "\n");
 
 TimeNow        <- proc.time();			# catch time reference
-FileOutputTime <- file("timesvc.txt", "w");
+FileOutputTime <- file(paste(tempdir(),"\\","timesvc.txt", sep='') , "w");
 
 for(NLine in 3:300 ) {
 	
@@ -2136,7 +2140,7 @@ for(NLine in 3:300 ) {
 	Alert("", "grid labeling...", "\n"); 
 	Alert("\t\t", "grid clustering...", "");
 	NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, 1, 2, WYA=WVectorsYA$A);	# clusters assignment
-	Alert("\t\t", "ok", "\n");
+	Alert("\t", "ok", "\n");
 	Alert("\t\t", "match grid...", ""); 
 	ClassPoints   = MatchGridPoint(Mat=Matrice$Mat, NumCluster=NumberCluster, Cx=1, Cy=2, Knn=K);  # cluster assignment
 	Alert("\t\t", "ok", "\n");
@@ -2152,7 +2156,7 @@ for(NLine in 3:300 ) {
 } #Endfori
 
 invisible(gc());					# freeing memory
-close(FileOutput);
+close(get("FileOutput", env=envir, inherits=TRUE));
 close(FileOutputTime);
 
 return("end-of-routine");
@@ -2187,7 +2191,8 @@ assign("q",     q,  env=envir, inherits = TRUE);
 assign("Ngrid", G,  env=envir, inherits = TRUE);
 assign("Knn",   K,  env=envir, inherits = TRUE);
 GlobalTime = 0;
-FileOutput <- file( paste(fileIn, fileName, sep="") , "w");		# open an output file connection
+fileName = file.path(tempdir(), "sortie.txt");
+assign( "FileOutput", file(fileName, "w"), env=envir, inherits=TRUE );		# open an output file connection
 #Data Grid structure
 assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
 assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
@@ -2195,7 +2200,7 @@ assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=envir, inherits= TRUE);
 
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
-FileOutputTime <- file( paste(fileIn, "timesvc.txt", sep="") , "w");
+FileOutputTime <- file( file.path(fileIn, "timesvc.txt"), "w"); #file( paste(fileIn, "timesvc.txt", sep="") , "w");
 
 ListNu = c(0.1, 0.5, 1);
 ListQ  = c(0.5, 1, 10, 100);
@@ -2249,7 +2254,7 @@ for(IndNu in 1:length(ListNu) ) {
 	Alert("", "grid labeling...", "\n"); 
 	Alert("\t\t", "grid clustering...", "");
 	NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, 1, 2, WYA=WVectorsYA$A);	# clusters assignment
-	Alert("\t\t", "ok", "\n");
+	Alert("\t", "ok", "\n");
 	Alert("\t\t", "match grid...", ""); 
 	ClassPoints   = MatchGridPoint(Mat=Matrice$Mat, NumCluster=NumberCluster, Cx=1, Cy=2, Knn=K);  # cluster assignment
 	Alert("\t\t", "ok", "\n");
@@ -2268,7 +2273,7 @@ for(IndNu in 1:length(ListNu) ) {
 
 } #EndforIndNu
 
-close(FileOutput);
+close(get("FileOutput", env=envir, inherits=TRUE));
 close(FileOutputTime);
 
 return("end-of-routine");
@@ -2292,7 +2297,7 @@ ExportClusters<- function (
     ) {
 
 #opening output stream
-CluOutput <- file( paste(pathOut, DName, "_clu.txt", sep="") , "w");
+CluOutput <- file( file.path(pathOut, paste(DName, "_clu.txt", sep="")) , "w");
 
 #sorting by cluster index
 SortedClassPoints = sort(CPoints, index = TRUE);
