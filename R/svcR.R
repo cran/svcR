@@ -58,9 +58,6 @@ AroundNullVA = 0.00005;
 # Data Structure of Criterium
 WVectorsYA <- list(W="",Y="",A="")
 
-# framing display
-par(mfrow = c(2, 2));					
-
 ########################################################################
 # Global Variable
 ########################################################################
@@ -244,6 +241,9 @@ DisplayData<- function (
     ListMis=""			# list of misclassified data
     ) {
 
+# framing display
+par(mfrow = c(2, 2));					
+
 # plot the data matrix
 #cat("matrix", "\n", file=get("FileOutput", env=envir, inherits=TRUE)); write(as.matrix(Mat), sep="\t", file=get("FileOutput", env=envir, inherits=TRUE));					
 
@@ -303,11 +303,13 @@ if( nchar(PathIn) < 2 ){
 	Mat$Var        = iris_var;
 }
 else {
-	Mat$Sparse     = read.table( paste(PathIn, DataName, "_mat", ".txt", sep="") , sep=" "); 
-	Mat$Att        = read.table( paste(PathIn, DataName, "_att", ".txt", sep="") ); 
-	Mat$Var        = read.table( paste(PathIn, DataName, "_var", ".txt", sep="") );
-}
+	Mat$Sparse     = read.table( paste(PathIn, DataName, "_mat", ".txt", sep="") , sep=" ");
+	Mat$Att        = read.table( paste(PathIn, DataName, "_att", ".txt", sep=""), quote="", sep="\n" );
+	Mat$Var        = read.table( paste(PathIn, DataName, "_var", ".txt", sep=""), quote="", sep="\n" );
+	}
+
 IndiceLineMax = IndiceColMax = 0;	# we look for max line and column indices
+
 for(i in 1:length(Mat$Sparse[,1]) ){
 		IndiceLine = Mat$Sparse[[1]][i];
 		IndiceCol  = Mat$Sparse[[2]][i];
@@ -316,7 +318,7 @@ for(i in 1:length(Mat$Sparse[,1]) ){
 } #finfori
 
 NCols   = IndiceColMax; # we initialize the full matrix
-NRows   = IndiceLineMax;
+NRows   = IndiceLineMax; 
 Mat$Mat = matrix(data = 0, nrow = NRows, ncol = NCols, byrow = FALSE, dimnames = NULL)
 
 for(i in 1:length(Mat$Sparse[,1]) ){	# we fill the full matrix
@@ -1239,9 +1241,11 @@ Evaluation<- function (
 
 #output points class
 NumColClass = ncol(Mat);
-#for(i in 1:nrow(Mat) ){
-# cat("N=", '\t', i, "\t", "i=", Mat[i, Cx], "\t", "j=", Mat[i, Cy], "\t", "C=", ClassPoints[i], "\t", "Cdata=", Mat[i, NumColClass], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
-#} #finfori
+for(i in 1:nrow(Mat) ){
+ cat("N=", '\t', i, "\t", "i=", Mat[i, Cx], "\t", "j=", Mat[i, Cy], "\t", "C=", ClassPoints[i], "\t", "Cdata=", Mat[i, NumColClass], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+} #finfori
+
+return(0);
 
 ListSortedItemsByClass  = sort( Mat[, NumColClass] );
 

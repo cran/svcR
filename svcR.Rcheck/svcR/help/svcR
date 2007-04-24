@@ -1,0 +1,86 @@
+findModelCluster            package:svcR            R Documentation
+
+_C_o_m_p_u_t_a_t_i_o_n _o_f _c_l_u_s_t_e_r_i_n_g _m_o_d_e_l _b_y _s_u_p_p_o_r_t _v_e_c_t_o_r _m_a_c_h_i_n_e
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     SvcR implements a clustering algorithm based on separator search
+     in a feature  space between points described in a data space. Data
+     format is defined by  an attribute/value table (matrix). The data
+     are transformed within a kernel  to a feature space into a unic
+     cluster bounded with a ball radius and support vectors.  We can
+     used the radius of this ball in the data space  to reconstruct the
+     boundary shaped now in several clusters.
+
+_U_s_a_g_e:
+
+     findModelCluster(MetOpt="", MetLab="", Nu="", q="", K="", G="", Cx="", Cy="", DName="", fileIn="")
+
+_A_r_g_u_m_e_n_t_s:
+
+  MetOpt: option taking value 1 (randomization) or 2 (quadratic
+          programming) 
+
+  MetLab: option taking value 1 (grid labelling) or 2 (mst labelling)
+          or 3 (knn labelling) 
+
+      Nu: kernel parameter  
+
+       q: kernel parameter 
+
+       K: number of neigbours on the grid 
+
+       G: size of the grid 
+
+      Cx: 1st data coordinate to plot for 2D cluster extraction 
+
+      Cy: 2nd data coordinate to plot for 2D cluster extraction 
+
+   DName: Name of data which is the prefix of files : 'DName_mat.txt', 
+          'DName_att.txt',  'DName_var.txt' 
+
+  fileIn: path where to find files 
+
+_D_e_t_a_i_l_s:
+
+     format of 'DName_mat.txt' (data matrix):  1 1 5.1        1 2 3.5 2
+     3 1.4 it mean mat[1, 1] = 5.1, mat[1, 2] = 3.5, mat[2, 3] = 1.4
+
+     format of 'DName_att.txt' :  X1 X2 it mean X1 is the name of first
+     column of the data matrix, X2 is the name of the second column of
+     the data matrix
+
+     format of 'DName_var.txt' :  v1 v2 it mean v1 is the name of first
+     line of the data matrix, v2 is the name of the second line of the
+     data matrix
+
+_V_a_l_u_e:
+
+     no return
+
+_A_u_t_h_o_r(_s):
+
+     Nicolas Turenne - INRA France nicolas.turenne@jouy.inra.fr
+
+_R_e_f_e_r_e_n_c_e_s:
+
+     N.Turenne , Some Heuristics to speed-up Support Vector Clustering
+     , technical report 2006, INRA, France  <URL:
+     http://migale.jouy.inra.fr/~turenne/svc.pdf>
+
+_E_x_a_m_p_l_e_s:
+
+     ## exemple with iris data
+
+     MetOpt  = 1;    # optimisation method with randomization
+     MetLab  = 1;    # grid labelling
+     Nu      = 0.5; 
+     q       = 40;   # lot of clusters
+     K       = 1;    # only 1  nearest neighbour for clustering
+     Cx = Cy = 0; # we use principal component analysis factors
+     G       = 15; # size of the grid for cluster labelling
+     DName   = "iris";
+     fileIn  = ""; # fileIn migth be such as "D:/R/library/svc/", if NULL it will work on iris data
+
+     findModelCluster(MetOpt, MetLab, Nu, q, K, G, Cx, Cy, DName, fileIn); 
+
