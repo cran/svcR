@@ -5,11 +5,13 @@
 ########################################################################
 
 ## History of this library 
-##  svcR # Apr-27-05
+##  svcR # 2005-2007
 ##   written  by Nicolas Turenne  
-##                 # v0.0     alpha release      # Apr-27-05   
-##                 # v0.9     alpha release      # Sep-26-05   
+##                 # v1.3     beta  release      # Jun-20-07   
+##                 # v1.2     beta  release      # Apr-24-07   
 ##                 # v1.0     beta  release      # Jun-26-06   
+##                 # v0.9     alpha release      # Sep-26-05   
+##                 # v0.0     alpha release      # Apr-27-05   
 ## source("D:\\R\\library\\svc\\svcR.txt")
 ## load("d:\\r\\library\\svc\\svc.RData")
 ## save.image("d:\\r\\library\\svc\\svc.RData")
@@ -17,11 +19,14 @@
 ########################################################################
 # Load library
 ########################################################################
+
+#rm(list = ls());
+
 library(quadprog)
 library(ade4)
 library(spdep)
 
-envir=globalenv();
+#envir=globalenv();
 
 ########################################################################
 # Constants
@@ -58,6 +63,12 @@ AroundNullVA = 0.00005;
 # Data Structure of Criterium
 WVectorsYA <- list(W="",Y="",A="")
 
+#Choice of kernel
+KChoice <- 0; # 0: eucli 1: radial 2: radial+dist 
+
+#Symmetrical case
+SymMat <- 0;
+
 ########################################################################
 # Global Variable
 ########################################################################
@@ -89,17 +100,21 @@ FileOutput = 0;						  # output connection
 
 Precision  = 0;
 
+#Local Environnment
+SvcEnv = 0;
+
 ########################################################################
 # Main function (SVC)
 ########################################################################
 
 # Usage:
-#   findModelCluster(MetOpt=1, MetLab=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris", fileIn="D:\\R\\library\\svcR\\")
+#   findModelCluster(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris", fileIn="D:\\R\\library\\svcR\\")
 #
 
 findModelCluster<- function (
   MetOpt="",				# method stoch (1) or quadprog (2)
   MetLab="",				# method grid  (1) or mst      (2) or knn (3)
+  KernChoice="",			# kernel choice 1,2 or 3
   Nu="",			     	# nu parameter
   q="",					# q parameter
   K="",					# k parameter, k nearest neigbours for grid
@@ -110,19 +125,23 @@ findModelCluster<- function (
   fileIn=""				# a file path of data
  ) {
 
+SvcEnv <- new.env(parent = globalenv());
+assign("SvcEnv", SvcEnv, env=globalenv(), inherits = FALSE);
+
 #parameters init
-assign("nu",    Nu, env=envir, inherits = TRUE);
-assign("q",     q,  env=envir, inherits = TRUE); 
-assign("Ngrid", G,  env=envir, inherits = TRUE);
-assign("Knn",   K,  env=envir, inherits = TRUE);
+assign("nu",    Nu, env=SvcEnv, inherits = FALSE);
+assign("q",     q,  env=SvcEnv, inherits = FALSE); 
+assign("Ngrid", G,  env=SvcEnv, inherits = FALSE);
+assign("Knn",   K,  env=SvcEnv, inherits = FALSE);
+assign("KChoice",  KernChoice,  env=SvcEnv, inherits = FALSE);
 TimeNow    <- proc.time();			# catch time reference
 #MemBeg     <- memory.size(max = FALSE);		# catch memory reference
 fileName = file.path(tempdir(), "sortie.txt");
-assign( "FileOutput", file(fileName, "w"), env=envir, inherits= TRUE );		# open an output file connection
+assign( "FileOutput", file(fileName, "w"), env=SvcEnv, inherits = FALSE );		# open an output file connection
 #Data Grid structure
-assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
-assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
-assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=envir, inherits= TRUE);
+assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), ncol = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), byrow = FALSE, dimnames = NULL), env=SvcEnv, inherits = FALSE);
+assign("NumPoints", array( list(), (get("Ngrid", env=SvcEnv, inherits = FALSE)+1)*(get("Ngrid", env=SvcEnv, inherits = FALSE)+1)), env=SvcEnv, inherits = FALSE);
+assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=SvcEnv, inherits = FALSE);
 
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
@@ -131,28 +150,32 @@ Matrice    <- chargeMatrix(DataName=DName, PathIn=fileIn);		# data matrix struct
 Alert("", "ok", "\n");
 
 Alert("", "two-feature selection...", "\t");
+NumberPCA = 5;
 if( cx != 0 ) { 
 		Matrice$Mat = Matrice$Mat[,c(cx,cy,ncol(Matrice$Mat))];
 }
 else { 
 		if( sign(min(Matrice$Mat)) < 0 ) {
-			MatAdjCoa    = dudi.pca(as.data.frame(Matrice$Mat[,1:(ncol(Matrice$Mat)-1)]), scan = FALSE);
+			MatAdjCoa    = dudi.pca(as.data.frame(Matrice$Mat[,1:(ncol(Matrice$Mat)-1)]),  scannf = FALSE, nf = NumberPCA);
 		}
 		else
-			MatAdjCoa    = dudi.coa(as.data.frame(Matrice$Mat[,1:(ncol(Matrice$Mat)-1)]), scan = FALSE);
+			MatAdjCoa    = dudi.coa(as.data.frame(Matrice$Mat[,1:(ncol(Matrice$Mat)-1)]),  scannf = FALSE, nf = NumberPCA);
 		Matrice$Mat = as.data.frame( c( MatAdjCoa$li , as.data.frame(Matrice$Mat[,ncol(Matrice$Mat)]) ) );
+		NumberPCA = MatAdjCoa$nf;
 } #EndIf
 Alert("", "ok", "\n");
 
 Alert("", "min max calculation...", "\t");
 cx = 1; cy = 2;
-MinMaxMat(Mat=Matrice$Mat, Cx=cx, Cy=cy);				
+MinMaxMat(Mat=Matrice$Mat, Cx=cx, Cy=cy);
+NbClassInData = max( Matrice$Mat[,(NumberPCA+1)] );
+assign("NbClassInData", NbClassInData, env=SvcEnv, inherits = FALSE ) ;
 Alert("", "ok", "\n");
 
 Alert("", "kernel matrix...", "\t\t");
-assign("MaxValA", 1/(get("nu", env=envir, inherits=TRUE)*nrow(Matrice$Mat)), env=envir, inherits= TRUE ) ; 
-#cat("MaxValA", '\n', get("MaxValA", env=envir, inherits=TRUE), file=get("FileOutput", env=envir, inherits=TRUE));
-MatriceK   <- calcKernelMatrix(Matrice$Mat);						# kernel matrix computation
+assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
+#cat("MaxValA", '\n', get("MaxValA", env=SvcEnv, inherits = FALSE), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+MatriceK   <- calcKernelMatrix(Matrice$Mat, KernChoice);	# kernel matrix computation
 Alert("", "ok", "\n");
 
 # lagrange multiplier computation
@@ -165,41 +188,44 @@ if( MetOpt == 2)
 Alert("", "ok", "\n");
 
 Alert("", "radius computation...", "\t\t"); 
-assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=envir, inherits= TRUE);  # computation a cluster radius
-assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=envir, inherits= TRUE);  	          # computation of delta R
+assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=SvcEnv, inherits = FALSE);  # computation a cluster radius
+assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=SvcEnv, inherits = FALSE);  	          # computation of delta R
 Alert("", "ok", "\n");
 
 if(MetLab == 1 ) {
 	Alert("", "grid labeling...", "\n"); 
-	Alert("\t\t", "grid clustering...", "");
+	Alert("\t\t", "grid clustering...", ""); 
 	NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, cx, cy, WYA=WVectorsYA$A);	# clusters assignment
 	Alert("\t", "ok", "\n");
 	Alert("\t\t", "match grid...", ""); 
 	ClassPoints   = MatchGridPoint(Mat=Matrice$Mat, NumCluster=NumberCluster, Cx=cx, Cy=cy, Knn=K);  # cluster assignment
 	Alert("\t\t", "ok", "\n");
-	Alert("\t\t", "evaluation...", "");
-	MisClass      = Evaluation(Mat=Matrice$Mat, NBClass=NumberCluster, Cx=cx, Cy=cy, ClassPoints=ClassPoints);					# evaluation
-	Alert("\t\t", "ok", "\n");
+	if( NbClassInData > 0 ) {
+		Alert("\t\t", "evaluation...", "");
+		MisClass      = Evaluation(Mat=Matrice$Mat, NBClass=NumberCluster, Cx=cx, Cy=cy, ClassPoints=ClassPoints);					# evaluation
+		Alert("\t\t", "ok", "\n");
+	}
 	Alert("\t\t\t\t" ,"ok", "\n");
 }
 else if( MetLab == 2 ){
 	Alert("", "mst labeling/eval...", "\n"); 
 	ClassPoints = MST_labelling(Mat=Matrice$Mat, MatK= MatriceK, WYA=WVectorsYA, Cx=cx, Cy=cy);
-	Alert("\t\t", "evaluation...", "");
-	MisClass    = Evaluation(Mat=Matrice$Mat, NBClass=max(ClassPoints), Cx=cx, Cy=cy, ClassPoints=ClassPoints);
-	Alert("\t\t", "ok", "\n");
+	if( NbClassInData > 0 ) {
+		Alert("\t\t", "evaluation...", "");
+		MisClass    = Evaluation(Mat=Matrice$Mat, NBClass=max(ClassPoints), Cx=cx, Cy=cy, ClassPoints=ClassPoints);
+		Alert("\t\t", "ok", "\n");
+	}
 	Alert("\t\t\t\t", "ok", "\n");
 }
 else if( MetLab == 3 ){
 	Alert("", "knn labeling/eval...", "\n");
 	ClassPoints    = KNN_labelling(Mat=Matrice$Mat, MatK= MatriceK, WYA=WVectorsYA, Cx=cx, Cy=cy);
-	Alert("\t\t", "evaluation...", "");
-	MisClass = Evaluation(Mat=Matrice$Mat, NBClass=max(ClassPoints), Cx=cx, Cy=cy, ClassPoints=ClassPoints);
-	Alert("\t\t", "...ok", "\n");
+	if( NbClassInData > 0 ) {
+		Alert("\t\t", "evaluation...", "");
+		MisClass = Evaluation(Mat=Matrice$Mat, NBClass=max(ClassPoints), Cx=cx, Cy=cy, ClassPoints=ClassPoints);
+		Alert("\t\t", "...ok", "\n");
+	}
 	Alert("\t\t\t\t", "ok", "\n");
-}
-else {
-	#MatAdj = Adjacency(Mat=Matrice$Mat, MatK=MatriceK, WYA=WVectorsYA);
 }
 
 Alert("", "export...", "\t\t\t");
@@ -210,15 +236,15 @@ Alert("", "display...", "\t\t\t");
 DisplayData(Matrice$Mat, MatriceK, WVectorsYA, cx, cy, MisClass);			# output results
 Alert("", "ok", "\n");
 
-#rm( MatriceK, VW, RO ); 
-invisible(gc());					# freeing memory
-#rm(list=ls(all=TRUE))					# delete all in workspace
-
 print("time consuming");print(proc.time() - TimeNow);	# output time consuming
 #print("Max Memory");print(GMHmax);
 #print("Memory At Beginning");print(MemBeg);		# output memory consuming
 #print("Memory Consuming");print(GMHmax-MemBeg);		# output memory consuming
-close( get("FileOutput", env=envir, inherits=TRUE) );
+close( get("FileOutput", env=SvcEnv, inherits = FALSE) );
+
+invisible(gc());				# freeing memory
+rm( list=ls( get("SvcEnv", env=globalenv(), inherits = TRUE) ), envir=SvcEnv );
+#rm(list=ls(all=TRUE))					# delete all in workspace
 
 return("end-of-routine");
 }
@@ -241,20 +267,21 @@ DisplayData<- function (
     ListMis=""			# list of misclassified data
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 # framing display
 par(mfrow = c(2, 2));					
 
 # plot the data matrix
-#cat("matrix", "\n", file=get("FileOutput", env=envir, inherits=TRUE)); write(as.matrix(Mat), sep="\t", file=get("FileOutput", env=envir, inherits=TRUE));					
+#cat("matrix", "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(as.matrix(Mat), sep="\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));					
 
 # plot Y class in the case of an svm
 if( WYA$Y[1] != "" )
 	plot( 1:length(WYA$Y), WYA$Y , xlab="point", ylab="Classe");
 
 # plot W history
-TAB = get("TabW", env=envir, inherits=FALSE);
+TAB = get("TabW", env=SvcEnv, inherits = FALSE);
 for(Ind in 1:length(TAB)){
-	Val = get( paste("TabW[",Ind,"]", sep="") , env=envir, inherits=FALSE);
+	Val = get( paste("TabW[",Ind,"]", sep="") , env=SvcEnv, inherits = FALSE);
 	TAB[Ind] = Val;
 }
 plot(TAB, xlab="#iterations", ylab="W");
@@ -267,7 +294,7 @@ if( WYA$A[1] != "" )
 plot(Mat[,Cx],Mat[,ncol(Mat)], xlab="data points", ylab="classes in data matrix")
 
 SV = ListSVPoints(VA=WYA$A);			# list of support vectors
-#cat("list des SV", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write(t(SV), file=get("FileOutput", env=envir, inherits=TRUE)); 
+#cat("list des SV", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(SV), file=get("FileOutput", env=SvcEnv, inherits = FALSE)); 
 for(i in 1:length(SV) ) {				
 		ISV = SV[i];
 		if( !is.na(ISV) )
@@ -294,6 +321,7 @@ chargeMatrix<- function (
     PathIn=""                   # path of the data matrix
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 Mat              <- list(Sparse="",Mat="",Var="",Att="");
 
 if( nchar(PathIn) < 2 ){
@@ -310,15 +338,16 @@ else {
 
 IndiceLineMax = IndiceColMax = 0;	# we look for max line and column indices
 
-for(i in 1:length(Mat$Sparse[,1]) ){
-		IndiceLine = Mat$Sparse[[1]][i];
-		IndiceCol  = Mat$Sparse[[2]][i];
-		if( IndiceLineMax < IndiceLine ) IndiceLineMax =  IndiceLine;
-		if( IndiceColMax  < IndiceCol )  IndiceColMax  =  IndiceCol;			
-} #finfori
+#for(i in 1:length(Mat$Sparse[,1]) ){
+#		IndiceLine = Mat$Sparse[[1]][i];
+#		IndiceCol  = Mat$Sparse[[2]][i];
+#		if( IndiceLineMax < IndiceLine ) IndiceLineMax =  IndiceLine;
+#		if( IndiceColMax  < IndiceCol )  IndiceColMax  =  IndiceCol;			
+#} #finfori
 
-NCols   = IndiceColMax; # we initialize the full matrix
-NRows   = IndiceLineMax; 
+NRows   = max( Mat$Sparse[[1]] ); # IndiceColMax; # we initialize the full matrix
+NCols   = max( Mat$Sparse[[2]] ); # IndiceLineMax; 
+
 Mat$Mat = matrix(data = 0, nrow = NRows, ncol = NCols, byrow = FALSE, dimnames = NULL)
 
 for(i in 1:length(Mat$Sparse[,1]) ){	# we fill the full matrix
@@ -328,7 +357,11 @@ for(i in 1:length(Mat$Sparse[,1]) ){	# we fill the full matrix
 		Mat$Mat[IndiceLine,IndiceCol] = Val;
 }#finfori
 
-#write( "Matrice$Mat \n", file=get("FileOutput", env=envir, inherits=TRUE)); write( t(Mat$Mat), sep="\t", file=get("FileOutput", env=envir, inherits=TRUE));
+#Samp = 50 ;
+#Mat$Mat = Mat$Mat[ c( c(1:Samp,(1+50):(Samp+50),(1+100):(Samp+100)) ) , ];
+#Mat$Var = as.matrix(Mat$Var[c( c(1:Samp,(1+50):(Samp+50),(1+100):(Samp+100)) ),1]);
+
+#write( "Matrice$Mat \n", file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(Mat$Mat), sep="\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 		
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -345,24 +378,32 @@ return (Mat);
 #
 
 calcKernelMatrix<- function (
-    matrix=""                           # matrix
-    ) {
+    matrix="",                           # matrix
+    KernChoice=""			# kernel choice
+   ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 NCols = ncol(matrix)-1;
 NRows = nrow(matrix);
 
 MatriceKernel = matrix(data = 0, nrow = NRows, ncol = NRows, byrow = FALSE, dimnames = NULL)
 
-#cat( "NCols", '\t', NCols, '\t', "NRows", NRows, file=get("FileOutput", env=envir, inherits=TRUE)); 
-i <- 1; j <- 1;
-for(i in 1:NRows) {
-  for( j in i:NRows) {
-	MatriceKernel[i,j] <- 0;
-	MatriceKernel[i,j] <- as.numeric( Kernel(Vec1=matrix[i,1:NCols], Vec2=matrix[j,1:NCols], Choice=1) );
-	MatriceKernel[j,i] <- MatriceKernel[i,j];
-  }
+#cat( "NCols", '\t', NCols, '\t', "NRows", NRows, file=get("FileOutput", env=SvcEnv, inherits = FALSE)); 
 
-}
+i <- 1; j <- 1;
+	
+for(i in 1:NRows) {
+	while( j >= i && j <= NCols ) {
+		MatriceKernel[i,j] <- 0;
+		if( SymMat == 0 ) {
+			MatriceKernel[i,j] <- as.numeric( Kernel(Vec1=matrix[i,1:NCols], Vec2=matrix[j,1:NCols], Choice=KernChoice) );
+		} else {	# case of symmetrical data matrix
+			MatriceKernel[i,j] <- as.numeric( Kernel(Vec1=c(matrix[i,j]), Vec2=c(matrix[i,j]), Choice=KernChoice) );
+		} #endif
+		MatriceKernel[j,i] <- MatriceKernel[i,j];
+		j=j+1;
+	} #endwhile
+}#endfori
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -389,6 +430,9 @@ if( Choice == 0 )
 else
 if( Choice == 1)
 	Res = KernelGaussian(V1=Vec1,V2=Vec2)
+else
+if( Choice == 2)
+	Res = KernelGaussianDist(V1=Vec1)
 
 return (Res);
 }
@@ -409,7 +453,7 @@ KernelLinear<- function (
 
 Res <- 0;
 
-Res <- as.numeric( V1%*%V2 );
+Res <- as.numeric( as.vector(V1, mode="numeric")%*%as.vector(V2, mode="numeric") );
 
 return(Res);
 }
@@ -428,11 +472,36 @@ KernelGaussian<- function (
     V2                           # second vector
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 Res	<- 0;
-q	<- get("q", env=envir, inherits=TRUE);
+q	<- get("q", env=SvcEnv, inherits = FALSE);
 
 Res <- as.vector(V1, mode="numeric") - as.vector(V2, mode="numeric") ;
 Res = exp( - q * as.numeric( Res %*% Res ) );
+
+return(Res);
+}
+
+########################################################################
+# Define KernelGaussian with element computing a distance
+#
+########################################################################
+
+# Usage:
+#   KernelGaussianDist(V1=v1)
+#
+
+KernelGaussianDist<- function (
+    V1                          # distance element
+    ) {
+
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
+Res	<- 0;
+q	<- get("q", env=SvcEnv, inherits = FALSE);
+
+V	<- as.vector(V1, mode="numeric");
+
+Res = exp( - q * as.numeric( sqrt(V%*%V) ) );
 
 return(Res);
 }
@@ -486,8 +555,8 @@ ConstraintCluster1<- function (
 N <- length(VecteurA);
 for( i in 1:N ) {
 	if( VecteurA[i] < 0 || VecteurA[i]  > BoundS ){
-		#write("beta_i \n", file=get("FileOutput", env=envir, inherits=TRUE)); write(VecteurA[i], file=get("FileOutput", env=envir, inherits=TRUE));  
-		#cat("\n BoundS \t", BoundS, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+		#write("beta_i \n", file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(VecteurA[i], file=get("FileOutput", env=SvcEnv, inherits = FALSE));  
+		#cat("\n BoundS \t", BoundS, '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 		return( 0 );
 	} #endif
 } #fin for i
@@ -509,9 +578,10 @@ ConstraintCluster2<- function (
     VecteurA=""                      # vector of Lagrange multipliers
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 Sum   <- 0;
 Sum = sum( VecteurA );
-#cat("Sum", '\n', Sum, file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("Sum", '\n', Sum, file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 #if( Sum != 1 )  #en theorie
 if( (Sum >  (1 + AroundNull)) || (Sum < (1 - AroundNull)) )  #en pratique
@@ -534,11 +604,12 @@ MakeA<- function (
 	Dim=""			#vector dimension
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 #WVectorsYA$A <- runif(Dim);
 #WVectorsYA$A = MaxValA * WVectorsYA$A ;
 #WVectorsYA$A = 2*WVectorsYA$A / Dim ;
 
-nu           = get("nu", env=envir, inherits=TRUE);
+nu           = get("nu", env=SvcEnv, inherits = FALSE);
 N            = Dim;
 COEFFS       = runif(N);
 Z            = runif(1);
@@ -560,11 +631,11 @@ while( sum(COEFFS) > 1 && i <= Dim ) {
 	i		= i+1;
 } #finwhile
 while( sum(COEFFS) < (1 - AroundNull) && i <= Dim ) {
-	COEFFS[i]	= get("MaxValA", env=envir, inherits=TRUE);
+	COEFFS[i]	= get("MaxValA", env=SvcEnv, inherits = FALSE);
 	i		= i+1;
 } #finwhile
 
-#cat( "MaxValA", get("MaxValA", env=envir, inherits=TRUE), '\t', "Sum MaxValA", length(COEFFS)*get("MaxValA", env=envir, inherits=TRUE), '\n');
+#cat( "MaxValA", get("MaxValA", env=SvcEnv, inherits = FALSE), '\t', "Sum MaxValA", length(COEFFS)*get("MaxValA", env=SvcEnv, inherits = FALSE), '\n');
 #cat( "sum(COEFFS)", sum(COEFFS), '\t', "1 + AroundNull", (1 + AroundNull), '\t', "1 - AroundNull", (1 - AroundNull), '\n' );
 
 return(COEFFS);
@@ -583,6 +654,7 @@ CalcWcluster<- function (
     MatriceKern=""                          # matrix of kernel product
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 WYA	<- list(W="",Y="",A="")
 W	<- MaxW; PreviousW <- MaxW ; Iter <- 1;
 WYA$W	<- W;
@@ -592,12 +664,12 @@ WYA$A	<- MakeA(Dim=N);
 
 # computation of WYA$A bound sup
 BoundSup	<- 1E+10;
-nu		<- get("nu", env=envir, inherits=TRUE);
-MaxValA		<- get("MaxValA", env=envir, inherits=TRUE);
+nu		<- get("nu", env=SvcEnv, inherits = FALSE);
+MaxValA		<- get("MaxValA", env=SvcEnv, inherits = FALSE);
 
 if( nu && N )
 	BoundSup = MaxValA ; # 1 / ( nu * N );
-#cat("BoundSup ", BoundSup, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("BoundSup ", BoundSup, "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 TabWPrec = MinW;
 
@@ -605,20 +677,20 @@ while( (W > TabWPrec &&  Iter <= MaxIter) ||  (Iter <= MaxIter) ) {
 	
 	PreviousW = W;
 	W         = CritereWcluster(VecteurA=WYA$A, MatrixK=MatriceKern);
-	#cat("Iter=", Iter, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("Iter=", Iter, '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 	if( Iter > 1 ){
 		ValW   = paste("TabW[",Iter-1, "]", sep=""); 
-		TabWPrec <- get(ValW, env=envir, inherits=TRUE);
+		TabWPrec <- get(ValW, env=SvcEnv, inherits = FALSE);
 		}
 	
 	if( W > TabWPrec ){
 		ValW   = paste("TabW[",Iter,"]", sep="");
-		assign(ValW, W, env=envir, inherits=TRUE);
+		assign(ValW, W, env=SvcEnv, inherits = FALSE);
 	} 
 	else {  
 		ValW   = paste("TabW[",Iter,"]", sep="");
-		assign(ValW, TabWPrec, env=envir, inherits=TRUE);
+		assign(ValW, TabWPrec, env=SvcEnv, inherits = FALSE);
 		WYA$A      <- MakeA(Dim=N); 
 		while( 
 			(ConstraintCluster1(BoundS=BoundSup, VecteurA=WYA$A) == 0) 
@@ -634,8 +706,8 @@ while( (W > TabWPrec &&  Iter <= MaxIter) ||  (Iter <= MaxIter) ) {
 	Iter      = Iter + 1;
 } #finwhile
 
-#cat("A", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write(t(WYA$A), file=get("FileOutput", env=envir, inherits=TRUE));
-#cat("W", '\n', t(TabW[Iter-1]) , file=get("FileOutput", env=envir, inherits=TRUE)); write(t(TabW[Iter-1]) , file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("A", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(WYA$A), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+#cat("W", '\n', t(TabW[Iter-1]) , file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(TabW[Iter-1]) , file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -655,33 +727,42 @@ OptimQuadProgWcluster<- function (
     MatriceKern=""                          # matrix of kernel product
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 WYA	<- list(W="",Y="",A="");
 WYA$W	<- MinW;
 N	<- ncol(MatriceKern)
-nu	<- get("nu", env=envir, inherits=TRUE);
-MaxValA	<- get("MaxValA", env=envir, inherits=TRUE);
+nu	<- get("nu", env=SvcEnv, inherits = FALSE);
+MaxValA	<- get("MaxValA", env=SvcEnv, inherits = FALSE);
 
 # computation of WYA$A bound sup
 BoundSup <- 1E+10;
 if( nu && N )
-	BoundSup = MaxValA ; # 1 / ( nu * N );
-#cat("BoundSup", BoundSup, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+	#BoundSup = 1000 / ( nu * N );
+	BoundSup = 500*MaxValA ; # 1 / ( nu * N );
+#cat("BoundSup", BoundSup, "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 Dmat <- 2*MatriceKern;
 dvec <- diag(MatriceKern);
 Amat <- matrix(0, 2*N+1, N);
 for( i in 1:N){ 
 		Amat[1,i]      = 1;
-		Amat[i+1,i]       = 1;
+		Amat[i+1,i]    = 1;
 		Amat[i+N+1,i]  = -1;
 }
 bvec = as.vector( c(1, matrix(0,1,N),matrix(-BoundSup,1,N) ) );
-S <- solve.QP(Dmat,-dvec,t(Amat),t(bvec), meq=1, factorized=TRUE);
+#  min(-t(dvec).b + 1/2 t(b).Dmat.b) with the constraints t(Amat).b >= b_0.
+#  min(-Diag(K).b + 1/2.(b.2K.b)) ou max(+Diag(K).b - 1/2.(b.2K.b)) with the constraints A.b >= b_0.
+S <- solve.QP(Dmat,t(dvec),t(Amat),t(bvec), meq=0, factorized=TRUE);
 WYA$A  <- S$solution;
 WYA$W <- S$value;
 
-#cat( "WYA$A", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(WYA$A) , file=get("FileOutput", env=envir, inherits=TRUE));
-#cat( "WYA$W", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(WYA$W) , file=get("FileOutput", env=envir, inherits=TRUE));
+for( Iter in 1:MaxIter){ 
+	ValW   = paste("TabW[",Iter,"]", sep="");
+	assign(ValW, S$value, env=SvcEnv, inherits = FALSE);
+}
+
+#cat( "WYA$A", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(WYA$A) , file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+#cat( "WYA$W", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(WYA$W) , file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -701,9 +782,10 @@ ListSVPoints<- function (
     VA=""                        # vector of Lagrange multipliers
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 N		<- length(VA);
 ListP		<- vector(); length(ListP) = N;
-MaxValA		<- get("MaxValA", env=envir, inherits=TRUE);
+MaxValA		<- get("MaxValA", env=SvcEnv, inherits = FALSE);
 
 Signe = 0;
 for( i in 1:N ) {
@@ -742,11 +824,12 @@ vectorWcluster<- function (
     WYA=""                           # Lagrange coefficients
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 VecW <- 0;
 for(i in 1:nrow(Mat) ) {
 	VecW = VecW + WYA$A[i]*Mat[i,1:(ncol(Mat)-1)];
 } #fin for i
-#cat("VecW", '\t', file=get("FileOutput", env=envir, inherits=TRUE)); write(t(VecW), file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("VecW", '\t', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(VecW), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -768,11 +851,14 @@ scalarRO<- function (
     WYA=""                           # Lagrange coefficients
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 ro <- 0;
+KC <- get("KChoice", env=SvcEnv, inherits = FALSE);
+
 for(i in 1:nrow(Mat) ) {
-	ro = ro + WYA$A[i]*Kernel(Vec1=VecW, Vec2=Mat[i,1:(ncol(Mat)-1)], Choice=1);
+	ro = ro + WYA$A[i]*Kernel(Vec1=VecW, Vec2=Mat[i,1:(ncol(Mat)-1)], KC);
 } #fin for i
-#cat("ro", '\n', ro, file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("ro", '\n', ro, file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -793,11 +879,12 @@ RadiusCluster<- function (
     MatrixK=""                  # matrix of kernel product
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 R        <- 0 ;
 IndiceSV <- 0;
 N        <- length(VA);
 i        <- 1;
-MaxValA  <- get("MaxValA", env=envir, inherits=TRUE);
+MaxValA  <- get("MaxValA", env=SvcEnv, inherits = FALSE);
  
 while( IndiceSV == 0 && i <= N ) {
         if( VA[i] > AroundNullVA && VA[i] < MaxValA )
@@ -816,11 +903,11 @@ if( IndiceSV == 0) for(i in 1:N ) {
 #cat(IndiceSV, '\n');
 if( IndiceSV != 0 ) {
 	R = RadiusData(IndicePoint=IndiceSV, VA=VA, MatK=MatrixK);
-	#cat("indiceSV=", IndiceSV, '\t', "R=", R, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("indiceSV=", IndiceSV, '\t', "R=", R, '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 }
 else {	
 	R = 0;
-	#cat("IndiceSV = 0", "\t", "AroundNullVA", AroundNullVA, "\t", "N=", N, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("IndiceSV = 0", "\t", "AroundNullVA", AroundNullVA, "\t", "N=", N, '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 } #finif
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
@@ -844,20 +931,23 @@ RadiusPoint<- function (
     MatK=""              # kernel matrix
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 Dim = ncol(Mat) - 1;
 
 Rad <- 0 ;
-Rad = Kernel( Vec1=Vec, Vec2=Vec , Choice=1) ;
+KC <- get("KChoice", env=SvcEnv, inherits = FALSE);
 
 for( i in 1:nrow(Mat) ) {
-
-        Rad = Rad - 2*VA[i]*Kernel( Vec1=Mat[i,1:Dim], Vec2=Vec[1:Dim] , Choice=1 );
 
 	for( j in 1:nrow(Mat) ) {
 		 Rad = Rad + VA[i]*VA[j]*MatK[i,j];
 	} #fin for j
 
+	Rad = Rad - 2*VA[i]*Kernel( Vec1=Mat[i,1:Dim], Vec2=Vec[1:Dim] , Choice=KC );
+
 } #fin for i
+
+Rad = Rad + Kernel( Vec1=Vec, Vec2=Vec , Choice=KC) ;
 
 if( Rad > 0 ){
 	Rad <- sqrt( Rad );
@@ -889,14 +979,17 @@ RadiusData<- function (
 Rad      <- 0 ;
 N        <- length(VA);
 
-Rad = MatK[IndicePoint,IndicePoint] ;
-
 for( i in 1:N ) {
-        Rad = Rad - 2*VA[i]*MatK[i,IndicePoint];
+
 	for( j in 1:N ) {
 		Rad = Rad + VA[i]*VA[j]*MatK[i,j];
 	} #fin for j
+
+        Rad = Rad - 2*VA[i]*MatK[i,IndicePoint];
+
 } #fin for i
+
+Rad = Rad + MatK[IndicePoint,IndicePoint] ;
 
 if( Rad > 0 ){
 	Rad <- sqrt( Rad );
@@ -924,9 +1017,10 @@ SmallR<- function (
     MatK=""                    # matrix of kernel product
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 N  <- length(VA);
 r  <- vector(); length(r) = N;
-nu <- get("nu", env=envir, inherits=TRUE)
+nu <- get("nu", env=SvcEnv, inherits = FALSE)
 C  <- 1 / ( nu * N );
 
 for( i in 1:N ) {
@@ -935,11 +1029,11 @@ for( i in 1:N ) {
 	r[i] = 0;
 	if( VA[i] > C * 0.98 ) {
 		R  = RadiusData(IndicePoint=i,VA=VA,MatK=MatK);
-		RC = get("RadiusC", env=envir, inherits=TRUE);
+		RC = get("RadiusC", env=SvcEnv, inherits = FALSE);
 		if( R > RC )
 			r[i] =  R*R - RC*RC;
 	} #finif
-	#cat("RadiusC", RC, "\t", "R", R, "\t", "ri", r[i], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("RadiusC", RC, "\t", "R", R, "\t", "ri", r[i], '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 } #finfor
 
 # calculation of the mean and the max
@@ -982,6 +1076,7 @@ AdjacencyPP<- function (
     WYA=""                      # Lagrange coefficients
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 adj_flag = 1; # unless a point on the path exits the sphere - pair is adjacent
 		
 interval = 0.0;
@@ -990,8 +1085,8 @@ while( interval < 1 && adj_flag ){
 	z = Vec1 + interval * (Vec2 - Vec1);	    
 	interval = interval + 0.3;
 	R  = RadiusPoint(Vec=z, VA=WYA, Mat=Mat, MatK=MatK);	
-	RC = get("RadiusC", env=envir, inherits=TRUE);
-	r  = get("r", env=envir, inherits=TRUE);
+	RC = get("RadiusC", env=SvcEnv, inherits = FALSE);
+	r  = get("r", env=SvcEnv, inherits = FALSE);
 	if(  (RC*RC + r) <  R*R ){
 		adj_flag = 0;
 		interval = 1;
@@ -1053,7 +1148,7 @@ while( j < length(ListIndice) ) {
 	
 } # finwhile ListIndice
 
-#cat( "AdjacencyM", '\n', AdjacencyM, file=get("FileOutput", env=envir, inherits=TRUE));
+#cat( "AdjacencyM", '\n', AdjacencyM, file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 print("fin adjacency");
 
@@ -1130,7 +1225,7 @@ while( IndRow < nrow(MatAdj01) ){
 
 Alert("\t\t", "...ok", "\n");
 
-#cat("ListItemCluster", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ListItemCluster), file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("ListItemCluster", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(ListItemCluster), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 return ( ListItemCluster );
 }
@@ -1196,7 +1291,7 @@ while( IndRow < nrow(MatAdj01) ){
 
 Alert("\t\t", "...end knn", "\n");
 
-#cat("ListItemCluster", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ListItemCluster), file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("ListItemCluster", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(ListItemCluster), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 return ( ListItemCluster );
 }
@@ -1239,13 +1334,14 @@ Evaluation<- function (
     ClassPoints=""      # Value of paires point/class
     ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 #output points class
 NumColClass = ncol(Mat);
 for(i in 1:nrow(Mat) ){
- cat("N=", '\t', i, "\t", "i=", Mat[i, Cx], "\t", "j=", Mat[i, Cy], "\t", "C=", ClassPoints[i], "\t", "Cdata=", Mat[i, NumColClass], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+ cat("N=", '\t', i, "\t", "i=", Mat[i, Cx], "\t", "j=", Mat[i, Cy], "\t", "C=", ClassPoints[i], "\t", "Cdata=", Mat[i, NumColClass], '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 } #finfori
 
-return(0);
+#return(0);
 
 ListSortedItemsByClass  = sort( Mat[, NumColClass] );
 
@@ -1267,7 +1363,7 @@ for(i in 2:nrow(Mat) ){
 
 } #finfori
 
-#cat("labelclass", '\n', LabelClass, '\n', "Cardlabelclass", '\n' , CardLabelClass, file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("labelclass", '\n', LabelClass, '\n', "Cardlabelclass", '\n' , CardLabelClass, file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 BestClass <- matrix(data = NA, nrow = NBClass, ncol = 2, byrow = FALSE, dimnames = NULL); 
 ListVecClass = list();
@@ -1279,10 +1375,12 @@ for(i in 1:nrow(Mat) ){
 	ListVecClass[[ Mat[i, NumColClass] ]][L+1] = ClassPoints[i];
 } #finFor
 
+#cat( "ok ok", '\n' , file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+
 for( IndClass in 1:NBClass ) {
 	VecClassSorted = sort(  ListVecClass[[ as.numeric(LabelClass[IndClass]) ]]  );
 	Counter = 1; BestClass[IndClass, 2] = 1; BestClass[IndClass, 1] = VecClassSorted[ 1 ];
-	#cat( "VecClassSorted", '\n' , file=get("FileOutput", env=envir, inherits=TRUE)); write( t(VecClassSorted), file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat( "VecClassSorted", '\n' , file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(VecClassSorted), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 	if( length(VecClassSorted) >= 2 )
 	for( IndVecSorted in 2:length(VecClassSorted) ) {
 		if( VecClassSorted[ IndVecSorted ] == VecClassSorted[ IndVecSorted - 1] ) {
@@ -1291,7 +1389,7 @@ for( IndClass in 1:NBClass ) {
 				BestClass[IndClass, 2] = Counter;
 				BestClass[IndClass, 1] = VecClassSorted[ IndVecSorted - 1];
 			} #finif
-			#cat("counter", Counter, "\t", "BestClass[IndClass, 2]", BestClass[IndClass, 2], "\t", "BestClass[IndClass, 1]", BestClass[IndClass, 1], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+			#cat("counter", Counter, "\t", "BestClass[IndClass, 2]", BestClass[IndClass, 2], "\t", "BestClass[IndClass, 1]", BestClass[IndClass, 1], '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 		} 
 		else {
 			Counter = 1;
@@ -1300,21 +1398,21 @@ for( IndClass in 1:NBClass ) {
 	} #finIndVecSorted
 }#finIndClass
 
-#cat("BestClass", '\n', BestClass, file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("BestClass", '\n', BestClass, file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 Precision  <- 0;
 for(IndClass in 1:NBClass )  if( BestClass[IndClass, 1] != 0 )
 	Precision <- Precision + BestClass[IndClass, 2];
 Precision <- ( Precision/nrow(Mat) ) * 100;
-assign("Precision", Precision, env=envir, inherits = TRUE);
-#options(digits=3); cat("Precision=", Precision, "% \n", file=get("FileOutput", env=envir, inherits=TRUE));
+assign("Precision", Precision, env=SvcEnv, inherits = FALSE);
+options(digits=3); cat("Precision=", Precision, "% \n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 #extraction of misclassified items
 ListMis = vector(); IndListMis = 1;
 for( i in 1:nrow(Mat) ) {
 	for( IndClass in 1:NBClass ) {
 		if( Mat[i, NumColClass] == as.numeric(LabelClass[IndClass]) ){
-			#cat("best", '\t', BestClass[IndClass, 1], "\t class", ClassPoints[i], '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+			#cat("best", '\t', BestClass[IndClass, 1], "\t class", ClassPoints[i], '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 			if( BestClass[IndClass, 1] != ClassPoints[i] || BestClass[IndClass, 1] == 0 ) {
 				ListMis[IndListMis] = i ;
 				IndListMis          = IndListMis + 1;
@@ -1323,7 +1421,7 @@ for( i in 1:nrow(Mat) ) {
 	}#endforIndVec
 } #finFor
 
-#write("ListMis \n", file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ListMis), file=get("FileOutput", env=envir, inherits=TRUE));
+write("ListMis \n", file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(ListMis), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 return(ListMis);
 
@@ -1348,15 +1446,16 @@ Grid<- function (
     ListMis=""		# list of misclassified data
     ) {
 
-N       =  get("Ngrid", env=envir, inherits=TRUE);					
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
+N       =  get("Ngrid", env=SvcEnv, inherits = FALSE);					
 ListX   <- array(0, N); # we make the list of X values	
 ListY   <- array(0, N); # we make the list of Y values
 ListVec <- array(0, ncol(Mat)-1); # we make random vector
 							 
-MaxX = get("MaxX", env=envir, inherits=TRUE);
-MinX = get("MinX", env=envir, inherits=TRUE);
-MaxY = get("MaxY", env=envir, inherits=TRUE);
-MinY = get("MinY", env=envir, inherits=TRUE);
+MaxX = get("MaxX", env=SvcEnv, inherits = FALSE);
+MinX = get("MinX", env=SvcEnv, inherits = FALSE);
+MaxY = get("MaxY", env=SvcEnv, inherits = FALSE);
+MinY = get("MinY", env=SvcEnv, inherits = FALSE);
 for(i in 1:N )	{
 	ListX[i] = ( MaxX - MinX )*( (i-1) / N ) + MinX;
 	ListY[i] = ( MaxY - MinY )*( (i-1) / N ) + MinY;
@@ -1370,13 +1469,14 @@ for(i in 1:N ){
 		x  = ListX[i]; ListVec[Cx] = x;
 		y  = ListY[j]; ListVec[Cy] = y;
 		R  = RadiusPoint(Vec=ListVec, VA=WYA, Mat=Mat, MatK=MatK);
-		RC = get("RadiusC", env=envir, inherits=TRUE);
-		r  = get("r", env=envir, inherits=TRUE);
+		RC = get("RadiusC", env=SvcEnv, inherits = FALSE);
+		r  = get("r", env=SvcEnv, inherits = FALSE);
 
-		#cat("i", i,"\t", "j", j,"  ", "RadiusC", RC, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
-		#cat("r", r, "\t", "x", x, "\t", "y", y, "\t", "R", R, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+		#cat("i", i,"\t", "j", j,"  ", "RadiusC", RC, "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+		#cat("r", r, "\t", "x", x, "\t", "y", y, "\t", "R", R, "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 		if(   (RC*RC + r) >=  R*R ){
+		#if(   (RC*RC + 0) >=  R*R ){
 			points(x, y, pch = 24, col = "yellow", bg = "yellow", cex = 1);
 		}
 		else
@@ -1388,6 +1488,7 @@ for(i in 1:N ){
 for(i in 1:length(WYA) ){
 	R = RadiusPoint(Vec=Mat[i,1:(ncol(Mat)-1)], VA=WYA, Mat=Mat, MatK=MatK);
 	if(   (RC*RC + r) >=  R*R ){
+	#if(   (RC*RC + 0) >=  R*R ){
 		points(Mat[i,Cx], Mat[i,Cy], pch = 21, col = "red", bg = "red", cex = 1);
 	}
 	else
@@ -1402,10 +1503,24 @@ for(i in 1:length(ListSV) ) {
 } #fin for i
 
 # plots misclassified data numbers being IMC, make in green
-for(i in 1:length(ListMis)){
+NBC = get("NbClassInData", env=SvcEnv, inherits = FALSE ) ;
+if( NBC > 0 ) for(i in 1:length(ListMis)){
 	IMC = ListMis[i];
 	points(Mat[IMC,Cx], Mat[IMC,Cy], pch = 24, col = "green", bg = "yellow", cex = 1)
 } #fin for i
+
+# plots classes , make in 4 colors
+#NRow = nrow(Mat); NCOLCLASS = ncol(Mat) ;
+#for( i in 1:NRow ){
+#	if( Mat[i,NCOLCLASS] == 1 )
+#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "blue" , bg = "blue", cex = 1);
+#	if( Mat[i,NCOLCLASS] == 2 )
+#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "green", bg = "green", cex = 1);
+#	if( Mat[i,NCOLCLASS] == 3 )
+#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "red " , bg = "red", cex = 1);
+#	if( Mat[i,NCOLCLASS] == 4 )
+#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "yellow", bg = "yellow", cex = 1);
+#} #fin for i
 
 }
 
@@ -1424,17 +1539,19 @@ MinMaxMat<- function (
     Cy="" 			# choice of y component to display
     ) {
 				
-assign("MaxX", max(Mat[, Cx]), env=envir, inherits= TRUE ) ; 
-assign("MaxY", max(Mat[, Cy]), env=envir, inherits= TRUE ) ; 
-assign("MinX", min(Mat[, Cx]), env=envir, inherits= TRUE ) ; 
-assign("MinY", min(Mat[, Cy]), env=envir, inherits= TRUE ) ; 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 
-MaxX = get("MaxX", env=envir, inherits=TRUE);
-MinX = get("MinX", env=envir, inherits=TRUE);
-MaxY = get("MaxY", env=envir, inherits=TRUE);
-MinY = get("MinY", env=envir, inherits=TRUE);
+assign("MaxX", max(Mat[, Cx]), env=SvcEnv, inherits = FALSE) ; 
+assign("MaxY", max(Mat[, Cy]), env=SvcEnv, inherits = FALSE ) ; 
+assign("MinX", min(Mat[, Cx]), env=SvcEnv, inherits = FALSE ) ; 
+assign("MinY", min(Mat[, Cy]), env=SvcEnv, inherits = FALSE ) ; 
 
-#cat("MaxX", '\t', MaxX, "MinX", '\t', MinX, '\n', file=get("FileOutput", env=envir, inherits=TRUE)); 
+MaxX = get("MaxX", env=SvcEnv, inherits = FALSE);
+MinX = get("MinX", env=SvcEnv, inherits = FALSE);
+MaxY = get("MaxY", env=SvcEnv, inherits = FALSE);
+MinY = get("MinY", env=SvcEnv, inherits = FALSE);
+
+#cat("MaxX", '\t', MaxX, "MinX", '\t', MinX, '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); 
 
 if( MinX == MaxX || MinY == MaxY ){
 	print("impossible to compute the grid");
@@ -1460,61 +1577,63 @@ ClusterLabeling<- function (
     WYA=""			# Lagrange coefficients
     ) {
 
-N	= get("Ngrid", env=envir, inherits=TRUE);					
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
+N	= get("Ngrid", env=SvcEnv, inherits = FALSE);					
 ListVec <- array(0, ncol(Mat)-1); # we make random vector
-MaxX	= get("MaxX", env=envir, inherits=TRUE);
-MinX	= get("MinX", env=envir, inherits=TRUE);
-MaxY	= get("MaxY", env=envir, inherits=TRUE);
-MinY	= get("MinY", env=envir, inherits=TRUE);
+MaxX	= get("MaxX", env=SvcEnv, inherits = FALSE);
+MinX	= get("MinX", env=SvcEnv, inherits = FALSE);
+MaxY	= get("MaxY", env=SvcEnv, inherits = FALSE);
+MinY	= get("MinY", env=SvcEnv, inherits = FALSE);
 
 InP = 1;
 for(i in 1:N ){ 
 	for(j in 1:N ){ 
 		x  = ( MaxX - MinX )*( (i-1) / N ) + MinX ; ListVec[Cx] = x;
-		y  = ( MaxY - MinY )*( (j-1) / N ) + MinY ; ListVec[Cy] = y;
+		y  = ( MaxY - MinY )*( (j-1) / N ) + MinY ; ListVec[Cy] = y; 
 		R  = RadiusPoint(Vec=ListVec, VA=WYA, Mat=Mat, MatK=MatK);
-		RC = get("RadiusC", env=envir, inherits=TRUE);
-		r  = get("r", env=envir, inherits=TRUE);
+		RC = get("RadiusC", env=SvcEnv, inherits = FALSE);
+		r  = get("r", env=SvcEnv, inherits = FALSE);
 		NM_InP = paste("NumPoints[[",InP,"]]", sep="");
-		assign(NM_InP, list(IndP="", IndX="", IndY="", InBall="", NumClus=""), env=envir, inherits= TRUE);
+		assign(NM_InP, list(IndP="", IndX="", IndY="", InBall="", NumClus=""), env=SvcEnv, inherits = FALSE);
 		PG  = paste("PointGrid[",i,",",j,"]", sep="");
-		assign( PG , InP, env=envir, inherits= TRUE); 
+		assign( PG , InP, env=SvcEnv, inherits = FALSE); 
 		NM1 = paste("NumPoints[",InP,"][[1]][1]", sep="");
 		NM2 = paste("NumPoints[",InP,"][[1]][2]", sep="");
 		NM3 = paste("NumPoints[",InP,"][[1]][3]", sep="");
 		NM4 = paste("NumPoints[",InP,"][[1]][4]", sep="");
 		NM5 = paste("NumPoints[",InP,"][[1]][5]", sep="");
-		assign( NM1 , InP, env=envir, inherits= TRUE); 
-		assign( NM2 , i, env=envir, inherits= TRUE); 
-		assign( NM3 , j, env=envir, inherits= TRUE); 
-		assign( NM5 , 0, env=envir, inherits= TRUE); 
+		assign( NM1 , InP, env=SvcEnv, inherits = FALSE); 
+		assign( NM2 , i, env=SvcEnv, inherits = FALSE); 
+		assign( NM3 , j, env=SvcEnv, inherits = FALSE); 
+		assign( NM5 , 0, env=SvcEnv, inherits = FALSE); 
 		if(  (RC*RC + r) >=  R*R ) {
-			assign(NM4, 1, env=envir, inherits= TRUE);
+	#	if(  (RC*RC + 0) >=  R*R ) {
+			assign(NM4, 1, env=SvcEnv, inherits = FALSE);
 		}
 		else {
-			assign(NM4, 0, env=envir, inherits= TRUE);
+			assign(NM4, 0, env=SvcEnv, inherits = FALSE);
 		}
 		InP = InP +1;
 	}#finforj
 } #finfori
 
-ListClusters	= list();
+ListClusters	= list(); 
 IndLC		= 0;
 Signal		= 0;
 for(i in 1:N ){
 	for(j in 1:N ){
 		PG  = paste("PointGrid[",i,",",j,"]", sep="");
-		InP = get( PG , env=envir, inherits=TRUE);
+		InP = get( PG , env=SvcEnv, inherits = FALSE);
 		NM4 = paste("NumPoints[",InP,"][[1]][4]", sep="");
 		NM2 = paste("NumPoints[",InP,"][[1]][2]", sep="");
 		NM3 = paste("NumPoints[",InP,"][[1]][3]", sep="");
 		NM5 = paste("NumPoints[",InP,"][[1]][5]", sep="");
-		if( get(NM4, env=envir, inherits=TRUE) == 1) {
+		if( get(NM4, env=SvcEnv, inherits = FALSE) == 1) {
 			Signal	= 0;
 			if( IndLC == 0 ) {	# create a new cluster
 				ListClusters[[1]]        = list();
 				ListClusters[[1]][1]     = InP; 
-				assign( NM5 , 1, env=envir, inherits= TRUE);
+				assign( NM5 , 1, env=SvcEnv, inherits = FALSE);
 				IndLC = IndLC + 1;
 				Signal	= 1;
 			}
@@ -1522,24 +1641,28 @@ for(i in 1:N ){
 				for(ii in (i-1):(i+1)){
 					for(jj in (j-1):(j+1)){
 
+						if( ii < 1 ) ii = 1;if( jj < 1 ) jj = 1;
+						if( ii > N ) ii = N;if( jj > N ) jj = N ;
+
 						if( ii == i && jj == j ){ }
 						else {
 							if( Signal == 0) for( IndListCluster in 1:length(ListClusters) ) {
 
 								ActualCluster = ListClusters[[ IndListCluster ]];
 								NbElemCluster = length(ActualCluster);
-
+							
 								if( Signal == 0) for( IndMembListClust in 1:NbElemCluster ) {
 
 									ActualPoint = ActualCluster[[ IndMembListClust ]];
 									NM2_cur = paste("NumPoints[",ActualPoint,"][[1]][2]", sep="");
 									NM3_cur = paste("NumPoints[",ActualPoint,"][[1]][3]", sep="");
-									if( get( NM2_cur , env=envir, inherits=TRUE) == ii && get( NM3_cur , env=envir, inherits=TRUE) == jj ){
+
+									if( get( NM2_cur , env=SvcEnv, inherits = FALSE) == ii && get( NM3_cur , env=SvcEnv, inherits = FALSE) == jj ){
 										ListClusters[[ IndListCluster ]][ NbElemCluster+1 ] = InP;
-										assign( NM5 , IndListCluster, env=envir, inherits= TRUE);
+										assign( NM5 , IndListCluster, env=SvcEnv, inherits = FALSE);
 										Signal	= 1;
 									}#endif
-									
+
 								} #finforIndMembListClust
 
 							} #finforIndListCluster
@@ -1552,7 +1675,7 @@ for(i in 1:N ){
 				num = length(ListClusters) + 1;
 				ListClusters[[ num ]]	 = list();
 				ListClusters[[num]][1]   = InP;
-				assign( NM5 , num, env=envir, inherits= TRUE);
+				assign( NM5 , num, env=SvcEnv, inherits = FALSE);
 			} #endif
 
 		} #endif
@@ -1564,11 +1687,11 @@ for(i in 1:N ){
 for(i in 1:N ){
 	for(j in 1:N ){
 		PG  = paste("PointGrid[",i,",",j,"]", sep="");
-		InP = get( PG , env=envir, inherits=TRUE);
+		InP = get( PG , env=SvcEnv, inherits = FALSE);
 		NM3 = paste("NumPoints[",InP,"][[1]][3]", sep="");
 		NM5 = paste("NumPoints[",InP,"][[1]][5]", sep="");
-		#cat("N=", InP, "i=", i, "\t j=", j, "\t", "NumPoints=", get(NM3, env=envir, inherits=TRUE), "\t", file=get("FileOutput", env=envir, inherits=TRUE));
-		#cat("NumCluster=", get(NM5, env=envir, inherits=TRUE), "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+		#cat("N=", InP, "i=", i, "\t j=", j, "\t", "NumPoints=", get(NM3, env=SvcEnv, inherits = FALSE), "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+		#cat("NumCluster=", get(NM5, env=SvcEnv, inherits = FALSE), "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 	}
 }
 
@@ -1584,19 +1707,22 @@ for(i in 1:NumberCluster ) for(j in 1:NumberCluster )	ClassConnex[i,j] = 0;
 for(i in 1:N ){
 	for(j in 1:N ){
 		PG  = paste("PointGrid[",i,",",j,"]", sep="");
-		InP = get( PG , env=envir, inherits=TRUE);
+		InP = get( PG , env=SvcEnv, inherits = FALSE);
 		for(ii in (i-1):(i+1)){
-			for(jj in (j-1):(j+1)) if( ii != 0 && jj != 0)if( ii <= N && jj <= N ) {
+			for(jj in (j-1):(j+1)) { 
+
+				if( ii < 1 ) ii = 1;if( jj < 1 ) jj = 1;
+				if( ii > N ) ii = N;if( jj > N ) jj = N ;
 				PG  = paste("PointGrid[",ii,",",jj,"]", sep="");
-				ActualPoint = get( PG , env=envir, inherits=TRUE);
+				ActualPoint = get( PG , env=SvcEnv, inherits = FALSE);
 				NM5_InP = paste("NumPoints[",InP,"][[1]][5]", sep="");
 				NM5_Cur = paste("NumPoints[",ActualPoint,"][[1]][5]", sep="");
-				if( get(NM5_InP, env=envir, inherits=TRUE) != 0 && get(NM5_Cur, env=envir, inherits=TRUE) != 0 ) { 
-					#cat("ii", ii, "\t", "jj", jj, "\t", "C1=", get(NM5_InP, env=envir, inherits=TRUE), "\t", file=get("FileOutput", env=envir, inherits=TRUE));
-					#cat("C2=", get(NM5_Cur, env=envir, inherits=TRUE), "\t", "i=", InP, "\t j=", ActualPoint, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
-					k = as.integer(get(NM5_InP, env=envir, inherits=TRUE));
-					l = as.integer(get(NM5_Cur, env=envir, inherits=TRUE));
-					#cat("k=", k, "\t", "l=", l, "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+				if( get(NM5_InP, env=SvcEnv, inherits = FALSE) != 0 && get(NM5_Cur, env=SvcEnv, inherits = FALSE) != 0 ) { 
+					#cat("ii", ii, "\t", "jj", jj, "\t", "C1=", get(NM5_InP, env=SvcEnv, inherits = FALSE), "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+					#cat("C2=", get(NM5_Cur, env=SvcEnv, inherits = FALSE), "\t", "i=", InP, "\t j=", ActualPoint, "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+					k = as.integer(get(NM5_InP, env=SvcEnv, inherits = FALSE));
+					l = as.integer(get(NM5_Cur, env=SvcEnv, inherits = FALSE));
+					#cat("k=", k, "\t", "l=", l, "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 					ClassConnex[ k, l ] = 1;
 				}#endif
 			} #endforjj
@@ -1606,7 +1732,7 @@ for(i in 1:N ){
 
 } #endifNmat
 
-#cat( "ClassConnex", '\n', file=get("FileOutput", env=envir, inherits=TRUE)); write( t(ClassConnex), sep='\t', file=get("FileOutput", env=envir, inherits=TRUE));
+#cat( "ClassConnex", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(ClassConnex), sep='\t', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 #deletion of bad classes
 IndClassFusIn  = 0;
@@ -1633,7 +1759,7 @@ for( indListClusters in 1:length(ListClusters) ) {	# deletion of copied clusters
 	for( IndMembListClust in 1:NbElemCluster ) {
 		ActualPoint     = ActualCluster[[ IndMembListClust ]];
 		NM5		= paste("NumPoints[",ActualPoint,"][[1]][5]", sep="");
-		assign( NM5 , indListClusters, env=envir, inherits= TRUE); 
+		assign( NM5 , indListClusters, env=SvcEnv, inherits = FALSE); 
 	} #finforIndMembListClust
 } #finforindListClusters
 
@@ -1643,8 +1769,8 @@ for(i in 1:(N*N) ){
 	NM2 = paste("NumPoints[",i,"][[1]][2]", sep="");
 	NM3 = paste("NumPoints[",i,"][[1]][3]", sep="");
 	NM5 = paste("NumPoints[",i,"][[1]][5]", sep="");
-	#cat("N=", i, "\t", "i=", get(NM2, env=envir, inherits=TRUE), "\t", "j=", get(NM3, env=envir, inherits=TRUE), "\t", file=get("FileOutput", env=envir, inherits=TRUE));
-	#cat("InBal=", get(NM4, env=envir, inherits=TRUE), "\t", "C=", get(NM5, env=envir, inherits=TRUE), "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("N=", i, "\t", "i=", get(NM2, env=SvcEnv, inherits = FALSE), "\t", "j=", get(NM3, env=SvcEnv, inherits = FALSE), "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+	#cat("InBal=", get(NM4, env=SvcEnv, inherits = FALSE), "\t", "C=", get(NM5, env=SvcEnv, inherits = FALSE), "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 } #finfori
 
 ##### end of computation
@@ -1669,15 +1795,16 @@ MatchGridPoint<- function (
 	Knn				# number of neighbour points
 ) {
 
+SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 NPoint = nrow(Mat);
-NG     = get("Ngrid", env=envir, inherits=TRUE);
-MaxX   = get("MaxX", env=envir, inherits=TRUE);
-MinX   = get("MinX", env=envir, inherits=TRUE);
-MaxY   = get("MaxY", env=envir, inherits=TRUE);
-MinY   = get("MinY", env=envir, inherits=TRUE);
+NG     = get("Ngrid", env=SvcEnv, inherits = FALSE);
+MaxX   = get("MaxX", env=SvcEnv, inherits = FALSE);
+MinX   = get("MinX", env=SvcEnv, inherits = FALSE);
+MaxY   = get("MaxY", env=SvcEnv, inherits = FALSE);
+MinY   = get("MinY", env=SvcEnv, inherits = FALSE);
 
 ClassPoints      <- array(0, NPoint ); 
-#cat("N ", NPoint, '\t', "NumCluster ", NumCluster, '\t', "knn ", Knn, '\n', file=get("FileOutput", env=envir, inherits=TRUE));
+#cat("N ", NPoint, '\t', "NumCluster ", NumCluster, '\t', "knn ", Knn, '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 if( NumCluster > 0)
 for(i in 1:NPoint ){
@@ -1686,12 +1813,12 @@ for(i in 1:NPoint ){
 	if( Xi > NG) Xi = NG; if(Yi > NG) Yi = NG;
 
 	PG  = paste("PointGrid[",Xi,",",Yi,"]", sep="");
-	InP = get( PG , env=envir, inherits=TRUE);
+	InP = get( PG , env=SvcEnv, inherits = FALSE);
 	ScoreNeighbours  <- array(0, NumCluster );
 
         NM5 = paste("NumPoints[",InP,"][[1]][5]", sep="");
-	#cat("N=", i, "\t", "Xi=", Xi, "\t", "Yi=", Yi, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
-	#cat("InP=", InP, "\t", "Class=", get(NM5, env=envir, inherits=TRUE), "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+	#cat("N=", i, "\t", "Xi=", Xi, "\t", "Yi=", Yi, "\t", "c1=", Mat[i, Cx], "\t", "c2=", Mat[i, Cy], "\t", "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+	#cat("InP=", InP, "\t", "Class=", get(NM5, env=SvcEnv, inherits = FALSE), "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 	for(ii in (Xi-1):(Xi+1)){
 			for(jj in (Yi-1):(Yi+1)) {
@@ -1702,21 +1829,22 @@ for(i in 1:NPoint ){
 					if( ii > NG) ii = NG; if(jj > NG) jj = NG;
 					if( ii <= 0) ii = 1; if(jj <= 0) jj = 1;
 					PG          = paste("PointGrid[",ii,",",jj,"]", sep="");
-					ActualPoint = get( PG , env=envir, inherits=TRUE);
+					ActualPoint = get( PG , env=SvcEnv, inherits = FALSE);
+					#cat("PG=", PG, "\t", "ActualPoint=",ActualPoint, "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 					NM_Cur      = paste("NumPoints[",ActualPoint,"][[1]][5]", sep="");
-					if( get(NM_Cur, env=envir, inherits=TRUE) != 0 ){
-						NumClass                  = as.integer(get(NM_Cur, env=envir, inherits=TRUE));
+					if( get(NM_Cur, env=SvcEnv, inherits = FALSE) != 0 ){
+						NumClass                  = as.integer(get(NM_Cur, env=SvcEnv, inherits = FALSE));
 						ScoreNeighbours[NumClass] <- ScoreNeighbours[NumClass] + 1 ;
-						#cat("N=", i, "\t", "Class=", NumClass, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
-						#cat("ScoreNeighbours=", ScoreNeighbours[ NumClass ], "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+						#cat("N=", i, "\t", "Class=", NumClass, "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+						#cat("ScoreNeighbours=", ScoreNeighbours[ NumClass ], "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 					}#endif
 				}#endif
 			} #endforjj
 	} #endforii
 
 	for(IndNumClass in 1:NumCluster ){
-		#cat("N=", IndNumClass, "\t", "length(ListClusters)=", NumCluster, "\t", file=get("FileOutput", env=envir, inherits=TRUE));
-		#cat("i=", i, "\t", "ScoreNeighbours=", ScoreNeighbours[ IndNumClass ], "\n", file=get("FileOutput", env=envir, inherits=TRUE));
+		#cat("N=", IndNumClass, "\t", "length(ListClusters)=", NumCluster, "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
+		#cat("i=", i, "\t", "ScoreNeighbours=", ScoreNeighbours[ IndNumClass ], "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 		if( ScoreNeighbours[ IndNumClass ] >= Knn )
 			ClassPoints[i] = IndNumClass;	
 	} #endforIndNumClass
@@ -1821,18 +1949,18 @@ ClusterEvalTest<- function (
     ) {
 
 #parameters init
-assign("nu",    Nu, env=envir, inherits = TRUE);
-assign("q",     q,  env=envir, inherits = TRUE); 
-assign("Ngrid", G,  env=envir, inherits = TRUE);
-assign("Knn",   K,  env=envir, inherits = TRUE);
+assign("nu",    Nu, env=SvcEnv, inherits = FALSE);
+assign("q",     q,  env=SvcEnv, inherits = FALSE); 
+assign("Ngrid", G,  env=SvcEnv, inherits = FALSE);
+assign("Knn",   K,  env=SvcEnv, inherits = FALSE);
 GlobalTime = 0;
 fileName = paste(tempdir(),"\\","sortie.txt", sep='');
-assign( "FileOutput", file(fileName, "w") , env=envir, inherits=TRUE);		# open an output file connection
+assign( "FileOutput", file(fileName, "w") , env=SvcEnv, inherits = FALSE);		# open an output file connection
 AvPrecision = 0;
 #Data Grid structure
-assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
-assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
-assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=envir, inherits= TRUE);
+assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), ncol = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), byrow = FALSE, dimnames = NULL), env=SvcEnv, inherits = FALSE);
+assign("NumPoints", array( list(), (get("Ngrid", env=SvcEnv, inherits = FALSE)+1)*(get("Ngrid", env=SvcEnv, inherits = FALSE)+1)), env=SvcEnv, inherits = FALSE);
+assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=SvcEnv, inherits = FALSE);
 
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
@@ -1871,7 +1999,7 @@ for( IndMat in 1:10 ) {
 	MatriceTest = as.data.frame( ListMatrixLearnTest$ListMatTest[IndMat]  );				
 
 	Alert("", "kernel matrix...", "\t\t");
-	assign("MaxValA", 1/(get("nu", env=envir, inherits=TRUE)*nrow(Matrice$Mat)), env=envir, inherits= TRUE ) ;  
+	assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ;  
 	MatriceK   <- calcKernelMatrix(Matrice$Mat);						# kernel matrix computation
 	Alert("", "ok", "\n");
 
@@ -1885,8 +2013,8 @@ for( IndMat in 1:10 ) {
 	Alert("", "ok", "\n");
 
 	Alert("", "radius computation...", "\t\t"); 
-	assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=envir, inherits= TRUE);  # computation a cluster radius
-	assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=envir, inherits= TRUE);  	          # computation of delta R
+	assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=SvcEnv, inherits = FALSE);  # computation a cluster radius
+	assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=SvcEnv, inherits = FALSE);  	          # computation of delta R
 	Alert("", "ok", "\n");
 
 	if(MetLab == 1 ) {
@@ -1924,9 +2052,9 @@ for( IndMat in 1:10 ) {
 
 } #EndforIndMat
 
-options(digits=3); cat ("PrecisionGlobale=", AvPrecision/10, "% \t", "\n", sep="", file=get("FileOutput", env=envir, inherits=TRUE));
+options(digits=3); cat ("PrecisionGlobale=", AvPrecision/10, "% \t", "\n", sep="", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 print("time consuming per process"); print(GlobalTime/10);	# output time consuming
-close(get("FileOutput", env=envir, inherits=TRUE));
+close(get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 return("end-of-routine");
 
@@ -1955,17 +2083,17 @@ ClusterEvalFinal<- function (
     ) {
 
 #parameters init
-assign("nu",    Nu, env=envir, inherits = TRUE);
-assign("q",     q,  env=envir, inherits = TRUE); 
-assign("Ngrid", G,  env=envir, inherits = TRUE);
-assign("Knn",   K,  env=envir, inherits = TRUE);
+assign("nu",    Nu, env=SvcEnv, inherits = FALSE);
+assign("q",     q,  env=SvcEnv, inherits = FALSE); 
+assign("Ngrid", G,  env=SvcEnv, inherits = FALSE);
+assign("Knn",   K,  env=SvcEnv, inherits = FALSE);
 GlobalTime = 0;
 fileName = paste(tempdir(),"\\","sortie.txt", sep='');
-assign( "FileOutput", file(fileName, "w") , env=envir, inherits=TRUE);		# open an output file connection
+assign( "FileOutput", file(fileName, "w") , env=SvcEnv, inherits = FALSE);		# open an output file connection
 #Data Grid structure
-assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
-assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
-assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=envir, inherits= TRUE);
+assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), ncol = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), byrow = FALSE, dimnames = NULL), env=SvcEnv, inherits = FALSE);
+assign("NumPoints", array( list(), (get("Ngrid", env=SvcEnv, inherits = FALSE)+1)*(get("Ngrid", env=SvcEnv, inherits = FALSE)+1)), env=SvcEnv, inherits = FALSE);
+assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=SvcEnv, inherits = FALSE);
 
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
@@ -1999,7 +2127,7 @@ MinMaxMat(Mat=Matrice$Mat, Cx=cx, Cy=cy);
 Alert("", "ok", "\n");
 
 Alert("", "kernel matrix...", "\t\t");
-assign("MaxValA", 1/(get("nu", env=envir, inherits=TRUE)*nrow(Matrice$Mat)), env=envir, inherits= TRUE ) ; 
+assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
 MatriceK   <- calcKernelMatrix(Matrice$Mat);						# kernel matrix computation
 Alert("", "ok", "\n");
 
@@ -2013,8 +2141,8 @@ else
 Alert("", "ok", "\n");
 
 Alert("", "radius computation...", "\t\t"); 
-assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=envir, inherits= TRUE);  # computation a cluster radius
-assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=envir, inherits= TRUE);  	          # computation of delta R
+assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=SvcEnv, inherits = FALSE);  # computation a cluster radius
+assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=SvcEnv, inherits = FALSE);  	          # computation of delta R
 Alert("", "ok", "\n");
 
 if(MetLab == 1 ) {
@@ -2049,9 +2177,9 @@ else if( MetLab == 3 ){
 
 invisible(gc());					# freeing memory
 GlobalTime = ( proc.time() - TimeNow ) ;
-options(digits=3); cat ("PrecisionGlobale=", Precision, "% \t", "\n", sep="", file=get("FileOutput", env=envir, inherits=TRUE));
+options(digits=3); cat ("PrecisionGlobale=", Precision, "% \t", "\n", sep="", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 print("time consuming"); print(GlobalTime);	# output time consuming
-close(get("FileOutput", env=envir, inherits=TRUE));
+close(get("FileOutput", env=SvcEnv, inherits = FALSE));
 
 return("end-of-routine");
 
@@ -2080,17 +2208,17 @@ ModelScalable<- function (
     ) {
 
 #parameters init
-assign("nu",    Nu, env=envir, inherits = TRUE);
-assign("q",     q,  env=envir, inherits = TRUE); 
-assign("Ngrid", G,  env=envir, inherits = TRUE);
-assign("Knn",   K,  env=envir, inherits = TRUE);
+assign("nu",    Nu, env=SvcEnv, inherits = FALSE);
+assign("q",     q,  env=SvcEnv, inherits = FALSE); 
+assign("Ngrid", G,  env=SvcEnv, inherits = FALSE);
+assign("Knn",   K,  env=SvcEnv, inherits = FALSE);
 GlobalTime = 0;
 fileName = paste(tempdir(),"\\","sortie.txt", sep='');
-assign( "FileOutput", file(fileName, "w"), env=envir, inherits=TRUE );		# open an output file connection
+assign( "FileOutput", file(fileName, "w"), env=SvcEnv, inherits = FALSE );		# open an output file connection
 #Data Grid structure
-assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
-assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
-assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=envir, inherits= TRUE);
+assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), ncol = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), byrow = FALSE, dimnames = NULL), env=SvcEnv, inherits = FALSE);
+assign("NumPoints", array( list(), (get("Ngrid", env=SvcEnv, inherits = FALSE)+1)*(get("Ngrid", env=SvcEnv, inherits = FALSE)+1)), env=SvcEnv, inherits = FALSE);
+assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=SvcEnv, inherits = FALSE);
 
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
@@ -2127,7 +2255,7 @@ for(NLine in 3:300 ) {
 	Alert("", "ok", "\n");
 
 	Alert("", "kernel matrix...", "\t\t");
-	assign("MaxValA", 1/(get("nu", env=envir, inherits=TRUE)*nrow(Matrice$Mat)), env=envir, inherits= TRUE ) ; 
+	assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
 	MatriceK   <- calcKernelMatrix(Matrice$Mat);						# kernel matrix computation
 	Alert("", "ok", "\n");
 
@@ -2137,8 +2265,8 @@ for(NLine in 3:300 ) {
 	Alert("", "ok", "\n");
 
 	Alert("", "radius computation...", "\t\t"); 
-	assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=envir, inherits= TRUE);  # computation a cluster radius
-	assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=envir, inherits= TRUE);  	          # computation of delta R
+	assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=SvcEnv, inherits = FALSE);  # computation a cluster radius
+	assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=SvcEnv, inherits = FALSE);  	          # computation of delta R
 	Alert("", "ok", "\n");
 
 	Alert("", "grid labeling...", "\n"); 
@@ -2154,13 +2282,13 @@ for(NLine in 3:300 ) {
 
 	GlobalTime = ( proc.time() - TimeNow ) ;
 	options(digits=3); 
-	cat("NLine=", NLine, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=envir, inherits=TRUE), '\n', file=FileOutputTime);	# output time consuming
-	cat("NLine=", NLine, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=envir, inherits=TRUE), '\n');	# output time consuming
+	cat("NLine=", NLine, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=SvcEnv, inherits = FALSE), '\n', file=FileOutputTime);	# output time consuming
+	cat("NLine=", NLine, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=SvcEnv, inherits = FALSE), '\n');	# output time consuming
 
 } #Endfori
 
 invisible(gc());					# freeing memory
-close(get("FileOutput", env=envir, inherits=TRUE));
+close(get("FileOutput", env=SvcEnv, inherits = FALSE));
 close(FileOutputTime);
 
 return("end-of-routine");
@@ -2190,17 +2318,17 @@ ModelClusterable<- function (
     ) {
 
 #parameters init
-assign("nu",    Nu, env=envir, inherits = TRUE);
-assign("q",     q,  env=envir, inherits = TRUE); 
-assign("Ngrid", G,  env=envir, inherits = TRUE);
-assign("Knn",   K,  env=envir, inherits = TRUE);
+assign("nu",    Nu, env=SvcEnv, inherits = FALSE);
+assign("q",     q,  env=SvcEnv, inherits = FALSE); 
+assign("Ngrid", G,  env=SvcEnv, inherits = FALSE);
+assign("Knn",   K,  env=SvcEnv, inherits = FALSE);
 GlobalTime = 0;
 fileName = file.path(tempdir(), "sortie.txt");
-assign( "FileOutput", file(fileName, "w"), env=envir, inherits=TRUE );		# open an output file connection
+assign( "FileOutput", file(fileName, "w"), env=SvcEnv, inherits = FALSE );		# open an output file connection
 #Data Grid structure
-assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=envir, inherits=TRUE)+1), ncol = (get("Ngrid", env=envir, inherits=TRUE)+1), byrow = FALSE, dimnames = NULL), env=envir, inherits= TRUE);
-assign("NumPoints", array( list(), (get("Ngrid", env=envir, inherits=TRUE)+1)*(get("Ngrid", env=envir, inherits=TRUE)+1)), env=envir, inherits= TRUE);
-assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=envir, inherits= TRUE);
+assign("PointGrid", matrix(data = NA, nrow = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), ncol = (get("Ngrid", env=SvcEnv, inherits = FALSE)+1), byrow = FALSE, dimnames = NULL), env=SvcEnv, inherits = FALSE);
+assign("NumPoints", array( list(), (get("Ngrid", env=SvcEnv, inherits = FALSE)+1)*(get("Ngrid", env=SvcEnv, inherits = FALSE)+1)), env=SvcEnv, inherits = FALSE);
+assign("TabW",seq(length=MaxIter,from=MinW,by=0), env=SvcEnv, inherits = FALSE);
 
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
@@ -2212,12 +2340,12 @@ ListQ  = c(0.5, 1, 10, 100);
 for(IndNu in 1:length(ListNu) ) {
 	
    Nu = ListNu[IndNu];
-   assign("nu",    Nu, env=envir, inherits = TRUE);
+   assign("nu",    Nu, env=SvcEnv, inherits = FALSE);
 	
    for(IndQ in 1:length(ListQ)) {
 	
 	q = ListQ[IndQ];
-	assign("q",     q,  env=envir, inherits = TRUE); 
+	assign("q",     q,  env=SvcEnv, inherits = FALSE); 
 	
 	TimeNow <- proc.time();
 
@@ -2241,7 +2369,7 @@ for(IndNu in 1:length(ListNu) ) {
 	Alert("", "ok", "\n");
 
 	Alert("", "kernel matrix...", "\t\t");
-	assign("MaxValA", 1/(get("nu", env=envir, inherits=TRUE)*nrow(Matrice$Mat)), env=envir, inherits= TRUE ) ; 
+	assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
 	MatriceK   <- calcKernelMatrix(Matrice$Mat);						# kernel matrix computation
 	Alert("", "ok", "\n");
 
@@ -2251,8 +2379,8 @@ for(IndNu in 1:length(ListNu) ) {
 	Alert("", "ok", "\n");
 
 	Alert("", "radius computation...", "\t\t"); 
-	assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=envir, inherits= TRUE);  # computation a cluster radius
-	assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=envir, inherits= TRUE);  	          # computation of delta R
+	assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=SvcEnv, inherits = FALSE);  # computation a cluster radius
+	assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=SvcEnv, inherits = FALSE);  	          # computation of delta R
 	Alert("", "ok", "\n");
 
 	Alert("", "grid labeling...", "\n"); 
@@ -2268,8 +2396,8 @@ for(IndNu in 1:length(ListNu) ) {
 
 	GlobalTime = ( proc.time() - TimeNow ) ;
 	options(digits=3); 
-	cat("q=",  get("q", env=envir, inherits=TRUE), '\t', "nu=", get("nu", env=envir, inherits=TRUE), '\t', "#cluster", NumberCluster, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=envir, inherits=TRUE), '\n', file=FileOutputTime);	# output time consuming
-	cat("q=",  get("q", env=envir, inherits=TRUE), '\t' , "nu=", get("nu", env=envir, inherits=TRUE), '\t', "#cluster", NumberCluster, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=envir, inherits=TRUE), '\n');	# output time consuming
+	cat("q=",  get("q", env=SvcEnv, inherits = FALSE), '\t', "nu=", get("nu", env=SvcEnv, inherits = FALSE), '\t', "#cluster", NumberCluster, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=SvcEnv, inherits = FALSE), '\n', file=FileOutputTime);	# output time consuming
+	cat("q=",  get("q", env=SvcEnv, inherits = FALSE), '\t' , "nu=", get("nu", env=SvcEnv, inherits = FALSE), '\t', "#cluster", NumberCluster, '\t', "T=", GlobalTime[1], '\t', "P=", get("Precision", env=SvcEnv, inherits = FALSE), '\n');	# output time consuming
 	
 	invisible(gc());					# freeing memory
 
@@ -2277,7 +2405,7 @@ for(IndNu in 1:length(ListNu) ) {
 
 } #EndforIndNu
 
-close(get("FileOutput", env=envir, inherits=TRUE));
+close(get("FileOutput", env=SvcEnv, inherits = FALSE));
 close(FileOutputTime);
 
 return("end-of-routine");
@@ -2304,11 +2432,11 @@ ExportClusters<- function (
 CluOutput <- file( file.path(pathOut, paste(DName, "_clu.txt", sep="")) , "w");
 
 #sorting by cluster index
-SortedClassPoints = sort(CPoints, index = TRUE);
+SortedClassPoints = sort(CPoints, method = "sh", index.return = TRUE);
+print(CPoints); 
 
 #output points class
 for(i in 1:nrow(MatriceVar) ){
-
  if( i == 1 || SortedClassPoints$x[i] != SortedClassPoints$x[i-1] )
 	cat('\n', "cluster", '\t', SortedClassPoints$x[i], '\n', file=CluOutput);
  cat("item", '\t', as.character(MatriceVar[ SortedClassPoints$ix[i] , 1 ]), '\n', file=CluOutput);

@@ -1,4 +1,4 @@
-This is pdfeTeX, Version 3.141592-1.30.6-2.2 (MiKTeX 2.5 Beta 10) (preloaded format=latex 2006.6.12)  16 APR 2007 11:21
+This is pdfeTeX, Version 3.141592-1.30.6-2.2 (MiKTeX 2.5 Beta 10) (preloaded format=latex 2006.6.12)  19 JUN 2007 13:27
 entering extended mode
 **\nonstopmode{}\input{svcR-manual.tex}
 (svcR-manual.tex ("C:\Program Files\MiKTeX 2.5\tex\latex\base\article.cls"
@@ -273,28 +273,28 @@ LaTeX Font Info:    External font `cmex10' loaded for size
  [1
 
 ]
-Overfull \hbox (118.29993pt too wide) in paragraph at lines 70--70
- []\T1/aett/m/n/10 findModelCluster(MetOpt="", MetLab="", Nu="", q="", K="", G=
-"", Cx="", Cy="", DName="", fileIn="")[] 
+Overfull \hbox (196.89978pt too wide) in paragraph at lines 70--70
+ []\T1/aett/m/n/10 findModelCluster(MetOpt="", MetLab="", KernChoice="", Nu="",
+ q="", K="", G="", Cx="", Cy="", DName="", fileIn="")[] 
  []
 
 [2]
-LaTeX Font Info:    Try loading font information for T1+aess on input line 84.
+LaTeX Font Info:    Try loading font information for T1+aess on input line 85.
  ("C:\Program Files\MiKTeX 2.5\tex\latex\ae\t1aess.fd"
 File: t1aess.fd 1997/11/16 Font definitions for T1/aess.
 )
-Overfull \hbox (4.33385pt too wide) in paragraph at lines 83--87
+Overfull \hbox (4.33385pt too wide) in paragraph at lines 84--88
 []\T1/aer/m/n/10 Name of data which is the pre-fix of files : `\T1/aess/m/n/10 
 DName_mat.txt\T1/aer/m/n/10 ', `\T1/aess/m/n/10 DName_att.txt\T1/aer/m/n/10 ',
  []
 
-
-Overfull \hbox (48.07803pt too wide) in paragraph at lines 130--130
+[3]
+Overfull \hbox (48.07803pt too wide) in paragraph at lines 132--132
  []\T1/aett/m/n/9 fileIn  = ""; # fileIn migth be such as "D:/R/library/svc/", 
 if NULL it will work on iris data[] 
  []
 
-[3] [4] (svcR-manual.aux) ) 
+[4] (svcR-manual.aux) ) 
 Here is how much of TeX's memory you used:
  3417 strings out of 95420
  44138 string characters out of 1187326
@@ -304,4 +304,4 @@ Here is how much of TeX's memory you used:
  14 hyphenation exceptions out of 8191
  38i,6n,27p,224b,485s stack positions out of 5000i,500n,10000p,200000b,32768s
 
-Output written on svcR-manual.dvi (4 pages, 15172 bytes).
+Output written on svcR-manual.dvi (4 pages, 15384 bytes).

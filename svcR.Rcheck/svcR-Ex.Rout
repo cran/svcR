@@ -82,15 +82,16 @@ Le chargement a nécessité le package : ade4
 > 
 > MetOpt  = 1;    # optimisation method with randomization
 > MetLab  = 1;    # grid labelling
-> Nu      = 0.5; 
-> q       = 40;   # lot of clusters
+> KChoice = 1;    # 0: eucli 1: radial 2: radial+dist 
+> Nu      = 0.7; 
+> q       = 1200;   # lot of clusters
 > K       = 1;    # only 1  nearest neighbour for clustering
 > Cx = Cy = 0; # we use principal component analysis factors
-> G       = 15; # size of the grid for cluster labelling
+> G       = 13; # size of the grid for cluster labelling
 > DName   = "iris";
 > fileIn  = ""; # fileIn migth be such as "D:/R/library/svc/", if NULL it will work on iris data
 > 
-> findModelCluster(MetOpt, MetLab, Nu, q, K, G, Cx, Cy, DName, fileIn); 
+> findModelCluster(MetOpt, MetLab, KChoice, Nu, q, K, G, Cx, Cy, DName, fileIn); 
  loading matrix... 		 ok 
  two-feature selection... 	 ok 
  min max calculation... 	 ok 
@@ -102,10 +103,15 @@ Le chargement a nécessité le package : ade4
 		 match grid... 		 ok 
 		 evaluation... 		 ok 
 				 ok 
- export... 			 ok 
+ export... 			  [1] 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+ [38] 1 1 1 1 1 1 0 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+ [75] 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 0 0 0 0 0 0 0 0 0 0 2
+[112] 0 0 0 0 0 2 2 0 0 0 0 0 2 2 2 2 2 0 2 0 2 0 2 0 0 0 2 2 2 0 0 0 0 0 0 0 2
+[149] 0 2
+ ok 
  display... 			 ok 
 [1] "time consuming"
-[1] 210.48   0.31 212.87     NA     NA
+[1] 107.75   0.11 113.29     NA     NA
 [1] "end-of-routine"
 > 
 > 
@@ -114,7 +120,7 @@ Le chargement a nécessité le package : ade4
 > ### * <FOOTER>
 > ###
 > cat("Time elapsed: ", proc.time() - get("ptime", env = .CheckExEnv),"\n")
-Time elapsed:  213.56 0.45 216.1 NA NA 
+Time elapsed:  110 0.22 116 NA NA 
 > grDevices::dev.off()
 null device 
           1 

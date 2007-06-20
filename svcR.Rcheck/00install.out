@@ -12,24 +12,10 @@ installing R.css in D:/rbuild/svcR/svcR.Rcheck
   installing help
  >>> Building/Updating help pages for package 'svcR'
      Formats: text html latex example chm 
-  iris_att                          text    html    latex           chm
-  iris_mat                          text    html    latex           chm
-  iris_var                          text    html    latex           chm
-  svcR                              text    html    latex   example chm
-Microsoft HTML Help Compiler 4.74.8702
-
-Compiling d:\RBuild\svcR\chm\svcR.chm
-
-
-Compile time: 0 minutes, 1 second
-5	Topics
-8	Local links
-1	Internet link
-1	Graphic
-
-
-Created d:\RBuild\svcR\chm\svcR.chm, 18,433 bytes
-Compression increased file by 6,005 bytes.
+  iris_att                          text    html    latex
+  iris_mat                          text    html    latex
+  iris_var                          text    html    latex
+  svcR                              text    html    latex   example
   preparing package svcR for lazy loading
   adding MD5 sums
 

@@ -11,12 +11,13 @@ We can used the radius of this ball in the data space
 to reconstruct the boundary shaped now in several clusters. 
 }
 \usage{
-findModelCluster(MetOpt="", MetLab="", Nu="", q="", K="", G="", Cx="", Cy="", DName="", fileIn="")
+findModelCluster(MetOpt="", MetLab="", KernChoice="", Nu="", q="", K="", G="", Cx="", Cy="", DName="", fileIn="")
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{MetOpt}{ option taking value 1 (randomization) or 2 (quadratic programming) }
   \item{MetLab}{ option taking value 1 (grid labelling) or 2 (mst labelling) or 3 (knn labelling) }
+  \item{KernChoice}{ option taking value 0 (Euclidian) or 1 (RBF) or 2 (Exponential) }
   \item{Nu}{ kernel parameter  }
   \item{q}{ kernel parameter }
   \item{K}{ number of neigbours on the grid }
@@ -59,15 +60,16 @@ it mean v1 is the name of first line of the data matrix, v2 is the name of the s
 
 MetOpt  = 1;    # optimisation method with randomization
 MetLab  = 1;    # grid labelling
-Nu      = 0.5; 
-q       = 40;   # lot of clusters
+KChoice = 1;    # 0: eucli 1: radial 2: radial+dist 
+Nu      = 0.7; 
+q       = 1200;   # lot of clusters
 K       = 1;    # only 1  nearest neighbour for clustering
 Cx = Cy = 0; # we use principal component analysis factors
-G       = 15; # size of the grid for cluster labelling
+G       = 13; # size of the grid for cluster labelling
 DName   = "iris";
 fileIn  = ""; # fileIn migth be such as "D:/R/library/svc/", if NULL it will work on iris data
 
-findModelCluster(MetOpt, MetLab, Nu, q, K, G, Cx, Cy, DName, fileIn); 
+findModelCluster(MetOpt, MetLab, KChoice, Nu, q, K, G, Cx, Cy, DName, fileIn); 
 
 }
 \keyword{ cluster }% at least one, from doc/KEYWORDS
