@@ -5,14 +5,15 @@
 ########################################################################
 
 ## History of this library 
-##  svcR # 2005-2007
+##  svcR # 2005-2008
 ##   written  by Nicolas Turenne  
+##                 # v1.4     beta  release      # May-20-08   
 ##                 # v1.3     beta  release      # Jun-20-07   
 ##                 # v1.2     beta  release      # Apr-24-07   
 ##                 # v1.0     beta  release      # Jun-26-06   
 ##                 # v0.9     alpha release      # Sep-26-05   
 ##                 # v0.0     alpha release      # Apr-27-05   
-## source("D:\\R\\library\\svc\\svcR.txt")
+## source("D:\\rbuild\\svcR\\R\\svcR2.txt")
 ## load("d:\\r\\library\\svc\\svc.RData")
 ## save.image("d:\\r\\library\\svc\\svc.RData")
 
@@ -20,11 +21,13 @@
 # Load library
 ########################################################################
 
-#rm(list = ls());
+rm(list = ls());
 
 library(quadprog)
 library(ade4)
 library(spdep)
+
+#dyn.load("D:\\RBuild\\svcR\\src\\svcR.dll");
 
 #envir=globalenv();
 
@@ -57,8 +60,8 @@ q = 5;
 cx = 1.; cy = 2.;
 
 # Value of AroundNull 
-AroundNull   = 0.1;
-AroundNullVA = 0.00005;
+AroundNull   = 0.05;
+AroundNullVA = 0.000005;
 
 # Data Structure of Criterium
 WVectorsYA <- list(W="",Y="",A="")
@@ -125,6 +128,9 @@ findModelCluster<- function (
   fileIn=""				# a file path of data
  ) {
 
+Error = IsError(MetOpt, MetLab, KernChoice, Nu, q, K, G, Cx, Cy, DName, fileIn);
+if( Error ) return("end-of-routine");
+
 SvcEnv <- new.env(parent = globalenv());
 assign("SvcEnv", SvcEnv, env=globalenv(), inherits = FALSE);
 
@@ -150,7 +156,7 @@ Matrice    <- chargeMatrix(DataName=DName, PathIn=fileIn);		# data matrix struct
 Alert("", "ok", "\n");
 
 Alert("", "two-feature selection...", "\t");
-NumberPCA = 5;
+NumberPCA = 2;
 if( cx != 0 ) { 
 		Matrice$Mat = Matrice$Mat[,c(cx,cy,ncol(Matrice$Mat))];
 }
@@ -161,49 +167,169 @@ else {
 		else
 			MatAdjCoa    = dudi.coa(as.data.frame(Matrice$Mat[,1:(ncol(Matrice$Mat)-1)]),  scannf = FALSE, nf = NumberPCA);
 		Matrice$Mat = as.data.frame( c( MatAdjCoa$li , as.data.frame(Matrice$Mat[,ncol(Matrice$Mat)]) ) );
+		Matrice$Mat = as.matrix( Matrice$Mat );
 		NumberPCA = MatAdjCoa$nf;
 } #EndIf
 Alert("", "ok", "\n");
 
 Alert("", "min max calculation...", "\t");
-cx = 1; cy = 2;
-MinMaxMat(Mat=Matrice$Mat, Cx=cx, Cy=cy);
+nlin = nrow(Matrice$Mat);
+ncol = ncol(Matrice$Mat);
+pp = c();
+for(i in 1:nlin ){	# we fill the full matrix
+	pp = c(pp, as.vector(Matrice$Mat[i,]) );
+}#finfori
+SymMat = 0;
+
+#MinMaxMat(Mat=Matrice$Mat, Cx=cx, Cy=cy);
+#print(pp);
+
+MinMaxXY  = .C("MinMaxMat_C",
+                as.vector(pp),
+                as.integer(nlin),
+                as.integer(ncol),
+                as.integer(1),
+		as.integer(2),
+                iMinMaxXY = numeric(4))$iMinMaxXY ;
+MxX = MinMaxXY[1];
+MnX = MinMaxXY[2];
+MxY = MinMaxXY[3];
+MnY = MinMaxXY[4];
+assign("MaxX", MxX, env=SvcEnv, inherits = FALSE ) ; 
+assign("MinX", MnX, env=SvcEnv, inherits = FALSE ) ; 
+assign("MaxY", MxY, env=SvcEnv, inherits = FALSE ) ; 
+assign("MinY", MnY, env=SvcEnv, inherits = FALSE ) ; 
+
+#print(MxX);print(MnX);print(MxY);print(MnY);
+
 NbClassInData = max( Matrice$Mat[,(NumberPCA+1)] );
 assign("NbClassInData", NbClassInData, env=SvcEnv, inherits = FALSE ) ;
 Alert("", "ok", "\n");
 
 Alert("", "kernel matrix...", "\t\t");
-assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
-#cat("MaxValA", '\n', get("MaxValA", env=SvcEnv, inherits = FALSE), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
-MatriceK   <- calcKernelMatrix(Matrice$Mat, KernChoice);	# kernel matrix computation
-Alert("", "ok", "\n");
+if( KernChoice == 2) SymMat = 1;
+MatriceKernel  = .C("calcKernelMatrix_C",
+                as.vector(pp),
+                as.integer(SymMat),
+                as.integer(q),
+                as.integer(ncol),
+		as.integer(nlin),
+		as.integer(KernChoice),
+                iMatriceKernel = numeric(nlin*nlin))$iMatriceKernel ;
+
+MatriceK	= matrix(data = 0, nrow = nlin, ncol = nlin, byrow = FALSE, dimnames = NULL)
+for(i in 1:nlin ){	# we fill the full matrix
+	MatriceK[i,] = MatriceKernel[(i*nlin-nlin+1):(i*nlin)];
+}#finfori
+Alert("", "ok", "\n"); 
 
 # lagrange multiplier computation
 Alert("", "lagrange coefficients...", "\t");
-if( MetOpt == 1 ) 
-	WVectorsYA <- CalcWcluster(MatriceKern=MatriceK)
+assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
+
+if( MetOpt == 1 ){ 
+	VectorWA =   .C("CalcWcluster_C",
+			as.vector(MatriceKernel), 
+			as.integer(MaxIter), 
+			as.integer(nlin), 
+			as.double(MaxValA), 
+			as.double(nu), 
+			as.integer(-100000), 
+			as.integer(100000), 
+			as.double(AroundNull),
+			iVectorsYA = numeric(2*nlin+1) )$iVectorsYA ;
+	WVectorsYA$A = VectorWA[1:nlin]; 
+	#print(WVectorsYA$A);
+	#print(MatriceKernel);
+}
 else
 if( MetOpt == 2)
-	WVectorsYA <- OptimQuadProgWcluster(MatriceKern=MatriceK)
+	WVectorsYA <- OptimQuadProgWcluster(MatriceKern=MatriceK);
 Alert("", "ok", "\n");
 
 Alert("", "radius computation...", "\t\t"); 
-assign("RadiusC", RadiusCluster(VA=WVectorsYA$A, MatrixK=MatriceK) , env=SvcEnv, inherits = FALSE);  # computation a cluster radius
-assign("r", SmallR(VA=WVectorsYA$A, MatK=MatriceK) , env=SvcEnv, inherits = FALSE);  	          # computation of delta R
+RadiusC =   .C("RadiusCluster",     
+			as.vector(VectorWA[1:nlin]), 
+			as.integer(nlin), 
+			as.double(MaxValA), 
+			as.double(AroundNullVA), 
+			as.vector(MatriceKernel) , 
+			iR = numeric(1) )$iR ;
+r =   .C("SmallR",     
+		as.integer(nlin), 
+		as.double(RadiusC), 
+		as.double(nu), 
+		as.vector(VectorWA) , 
+		as.vector(MatriceKernel) , 
+		iResu = numeric(1) )$iResu ;
+assign("RadiusC", RadiusC, env=SvcEnv, inherits = FALSE ) ; 
+assign("r", r, env=SvcEnv, inherits = FALSE ) ; 
 Alert("", "ok", "\n");
+cat("\t\t\t", "radiusC ", RadiusC, "\t", "smallr ", r, "\n");					
 
 if(MetLab == 1 ) {
 	Alert("", "grid labeling...", "\n"); 
 	Alert("\t\t", "grid clustering...", ""); 
-	NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, cx, cy, WYA=WVectorsYA$A);	# clusters assignment
+
+	NumPoints =   .C("ClusterLabeling_C",     
+			as.vector(pp) ,  
+			as.vector(MatriceKernel) ,  
+			as.integer(G), 
+			as.integer(ncol), 
+			as.integer(nlin), 
+			as.integer(q), 
+			as.double(MxX), 
+			as.double(MnX), 
+			as.double(MxY), 
+			as.double(MnY), 
+			as.double(RadiusC), 
+			as.double(r), 
+			as.integer(KernChoice), 
+			as.vector(VectorWA) , 
+			iNumPoints = numeric( G * G * 7 ) )$iNumPoints;
+
+	NbCluster =   .C("NbCluster_C",     
+			as.vector(NumPoints), 
+			as.integer(G), 
+			iNCluster = integer(1) )$iNCluster;
+
 	Alert("\t", "ok", "\n");
 	Alert("\t\t", "match grid...", ""); 
-	ClassPoints   = MatchGridPoint(Mat=Matrice$Mat, NumCluster=NumberCluster, Cx=cx, Cy=cy, Knn=K);  # cluster assignment
+
+	ClassPoints =   .C("MatchGridPoint_C",     
+			as.vector(pp) , 
+			as.vector(MatriceKernel) , 
+			as.integer(G), 
+			as.integer(ncol), 
+			as.integer(nlin), 
+			as.double(MxX), 
+			as.double(MnX), 
+			as.double(MxY), 
+			as.double(MnY), 
+			as.integer(NbCluster), 
+			as.integer(Knn), 
+			as.integer(0), 
+			as.integer(1), 
+			as.vector(NumPoints) , 
+			iClassPoints = numeric(nlin) )$iClassPoints;
+	
 	Alert("\t\t", "ok", "\n");
+
+	cat("\t\t\t", "NbCluster ", NbCluster, "\n");					
+
 	if( NbClassInData > 0 ) {
 		Alert("\t\t", "evaluation...", "");
-		MisClass      = Evaluation(Mat=Matrice$Mat, NBClass=NumberCluster, Cx=cx, Cy=cy, ClassPoints=ClassPoints);					# evaluation
+
+		MisClass =   .C("Evaluation_C",     
+			as.vector(pp) ,  
+			as.integer(nlin), 
+			as.integer(ncol), 
+			as.integer(NbCluster), 
+			as.vector(ClassPoints) , 
+			iMisClass = numeric(nlin) )$iMisClass;
+
 		Alert("\t\t", "ok", "\n");
+		cat("\t\t\t", "Precision ", (100*(nlin-sum(MisClass[]>0))/nlin), "\n");					
 	}
 	Alert("\t\t\t\t" ,"ok", "\n");
 }
@@ -233,7 +359,7 @@ ExportClusters(MatriceVar=Matrice$Var, CPoints=ClassPoints, DName=DName, pathOut
 Alert("", "ok", "\n");
 
 Alert("", "display...", "\t\t\t");
-DisplayData(Matrice$Mat, MatriceK, WVectorsYA, cx, cy, MisClass);			# output results
+DisplayData(Matrice$Mat, MatriceK, WVectorsYA, 0, 1, MisClass, NumPoints, ClassPoints);	# output results
 Alert("", "ok", "\n");
 
 print("time consuming");print(proc.time() - TimeNow);	# output time consuming
@@ -247,6 +373,68 @@ rm( list=ls( get("SvcEnv", env=globalenv(), inherits = TRUE) ), envir=SvcEnv );
 #rm(list=ls(all=TRUE))					# delete all in workspace
 
 return("end-of-routine");
+}
+
+########################################################################
+# Main function (SVC)
+########################################################################
+
+# Usage:
+#   findModelCluster(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris", fileIn="D:\\R\\library\\svcR\\")
+#
+
+IsError<- function (
+  MetOpt="",				# method stoch (1) or quadprog (2)
+  MetLab="",				# method grid  (1) or mst      (2) or knn (3)
+  KernChoice="",			# kernel choice 0,1 or 2
+  Nu="",			     	# nu parameter
+  q="",					# q parameter
+  K="",					# k parameter, k nearest neigbours for grid
+  G="",					# g parameter, grid size
+  Cx="", 				# choice of x component to display
+  Cy="", 				# choice of y component to display
+  DName="",				# data name
+  fileIn=""				# a file path of data
+ ) {
+
+if( MetOpt > 2 || MetOpt < 1 ) {
+	print( " parameter MetOpt between 1 and 2 - try again ");
+	return (1);
+} #endif
+if( MetLab > 3 || MetLab < 1 ) {
+	print( " parameter MetLab between 1 and 3 - try again ");
+	return (1);
+} #endif
+if( KernChoice > 2 || KernChoice < 0 ) {
+	print( " parameter KernChoice between 0 and 2 - try again ");
+	return (1);
+} #endif
+if( Nu > 1000 || Nu < 0 ) {
+	print( " parameter Nu between 0 and 1000 - try again ");
+	return (1);
+} #endif
+if( K > 10 || K < 0 ) {
+	print( " parameter K between 0 and 10 - try again ");
+	return (1);
+} #endif
+if( q > 1000000 || q < 0 ) {
+	print( " parameter q between 0 and 1000000 - try again ");
+	return (1);
+} #endif
+if( G > 500 || G < 0 ) {
+	print( " parameter G between 0 and 500 - try again ");
+	return (1);
+} #endif
+if( Cx > 100 || Cx < 0 ) {
+	print( " parameter Cx between 0 and 100 - try again ");
+	return (1);
+} #endif
+if( Cy > 100 || Cy < 0 ) {
+	print( " parameter Cy between 0 and 100 - try again ");
+	return (1);
+} #endif
+
+return (0);
 }
 
 ########################################################################
@@ -264,7 +452,9 @@ DisplayData<- function (
     WYA="" ,			# vectors classs/ coefficients
     Cx="", 			# choice of x component to display
     Cy="", 			# choice of y component to display
-    ListMis=""			# list of misclassified data
+    ListMis="",			# list of misclassified data
+    NumPoints="",		# list of grid membership to clusters
+    ClassPoints=""		# list of data points to clusters
     ) {
 
 SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
@@ -279,29 +469,38 @@ if( WYA$Y[1] != "" )
 	plot( 1:length(WYA$Y), WYA$Y , xlab="point", ylab="Classe");
 
 # plot W history
-TAB = get("TabW", env=SvcEnv, inherits = FALSE);
-for(Ind in 1:length(TAB)){
-	Val = get( paste("TabW[",Ind,"]", sep="") , env=SvcEnv, inherits = FALSE);
-	TAB[Ind] = Val;
-}
-plot(TAB, xlab="#iterations", ylab="W");
+#TAB = get("TabW", env=SvcEnv, inherits = FALSE);
+#for(Ind in 1:length(TAB)){
+#	Val = get( paste("TabW[",Ind,"]", sep="") , env=SvcEnv, inherits = FALSE);
+#	TAB[Ind] = Val;
+#}
+#plot(TAB, xlab="#iterations", ylab="W");
 
 # plot Lagrange parameters
 if( WYA$A[1] != "" )
 	plot( 1:length(WYA$A), WYA$A , xlab="point", ylab="Coefficient de Lagrange");
 
 # plots data numbers being SV, make SV in red
-plot(Mat[,Cx],Mat[,ncol(Mat)], xlab="data points", ylab="classes in data matrix")
+plot(Mat[,1],Mat[,ncol(Mat)], xlab="data points", ylab="classes in data matrix")
 
-SV = ListSVPoints(VA=WYA$A);			# list of support vectors
+#SV = ListSVPoints(VA=WYA$A);			# list of support vectors
+MxValA = get("MaxValA", env=SvcEnv, inherits = FALSE ) ; 
+
+SV =   .C("ListSVPoints_C",     
+		as.vector(WYA$A) ,  
+		as.integer( nrow(Mat) ), 
+		as.numeric( MxValA ), 
+		as.numeric( AroundNullVA ), 
+		iListPoints = numeric( nrow(Mat) ) )$iListPoints;
+
 #cat("list des SV", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(SV), file=get("FileOutput", env=SvcEnv, inherits = FALSE)); 
 for(i in 1:length(SV) ) {				
 		ISV = SV[i];
 		if( !is.na(ISV) )
-			points(Mat[ISV,Cx], Mat[ISV,ncol(Mat)], pch = 24, col = "red", bg = "yellow", cex = 1)
+			points(Mat[ISV,1], Mat[ISV,ncol(Mat)], pch = 24, col = "red", bg = "yellow", cex = 1)
 } #fin for i
 
-Grid(Mat=Mat, MatK= MatK, WYA=WYA$A, ListSV=SV , Cx, Cy, ListMis);
+Grid(Mat=Mat, MatK= MatK, WYA=WYA$A, ListSV=SV , 1, 2, ListMis, NumPoints, ClassPoints);
 
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
@@ -320,41 +519,50 @@ chargeMatrix<- function (
     DataName="",                # name of data
     PathIn=""                   # path of the data matrix
     ) {
-
 SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 Mat              <- list(Sparse="",Mat="",Var="",Att="");
 
 if( nchar(PathIn) < 2 ){
-	data(iris_mat); data(iris_att); data(iris_var);
-	Mat$Sparse     = iris_mat; 
-	Mat$Att        = iris_att; 
-	Mat$Var        = iris_var;
-}
-else {
-	Mat$Sparse     = read.table( paste(PathIn, DataName, "_mat", ".txt", sep="") , sep=" ");
-	Mat$Att        = read.table( paste(PathIn, DataName, "_att", ".txt", sep=""), quote="", sep="\n" );
-	Mat$Var        = read.table( paste(PathIn, DataName, "_var", ".txt", sep=""), quote="", sep="\n" );
-	}
 
-IndiceLineMax = IndiceColMax = 0;	# we look for max line and column indices
+	Mat$Sparse     = read.table( system.file("data", "iris_mat.txt", package = "svcR") , sep=" ");
+	Mat$Att        = read.table( system.file("data", "iris_att.txt", package = "svcR") , quote="", sep=" " );
+	Mat$Var        = read.table( system.file("data", "iris_var.txt", package = "svcR") , quote="", sep=" " );
+	
+	NRows   = max( Mat$Sparse[[1]] ); # IndiceColMax; # we initialize the full matrix
+	NCols   = max( Mat$Sparse[[2]] ); # IndiceLineMax; 
+	Mat$Mat = matrix(data = 0, nrow = NRows, ncol = NCols, byrow = FALSE, dimnames = NULL)
 
-#for(i in 1:length(Mat$Sparse[,1]) ){
-#		IndiceLine = Mat$Sparse[[1]][i];
-#		IndiceCol  = Mat$Sparse[[2]][i];
-#		if( IndiceLineMax < IndiceLine ) IndiceLineMax =  IndiceLine;
-#		if( IndiceColMax  < IndiceCol )  IndiceColMax  =  IndiceCol;			
-#} #finfori
-
-NRows   = max( Mat$Sparse[[1]] ); # IndiceColMax; # we initialize the full matrix
-NCols   = max( Mat$Sparse[[2]] ); # IndiceLineMax; 
-
-Mat$Mat = matrix(data = 0, nrow = NRows, ncol = NCols, byrow = FALSE, dimnames = NULL)
-
-for(i in 1:length(Mat$Sparse[,1]) ){	# we fill the full matrix
+	for(i in 1:length(Mat$Sparse[,1]) ){	# we fill the full matrix
 		IndiceLine = Mat$Sparse[[1]][i];
 		IndiceCol  = Mat$Sparse[[2]][i];
 		Val        = as.numeric( Mat$Sparse[[3]][i] );
 		Mat$Mat[IndiceLine,IndiceCol] = Val;
+	}#finfori
+
+	return (Mat);
+} #endif
+
+NomFile  = paste(PathIn, DataName, "_mat", ".txt", sep=""); #"D:\\R\\library\\svcR\\data\\iris_mat.txt";
+List_max = .C( "SizeMat_C",
+		as.character(NomFile),
+		ListMax = numeric(2) )$ListMax ; 
+
+MaxLin   = List_max[1];
+MaxCol   = List_max[2];
+
+ReadMat  = .C("LireMat_C",
+                as.character(NomFile),
+                as.integer(MaxLin),
+                as.integer(MaxCol),
+                iRetVec = numeric(MaxLin*MaxCol))$iRetVec
+
+Mat$Att	= read.table( paste(PathIn, DataName, "_att", ".txt", sep=""), quote="", sep="\n" );
+Mat$Var	= read.table( paste(PathIn, DataName, "_var", ".txt", sep=""), quote="", sep="\n" );
+
+Mat$Mat	= matrix(data = 0, nrow = MaxLin, ncol = MaxCol, byrow = FALSE, dimnames = NULL)
+
+for(i in 1:MaxLin ){	# we fill the full matrix
+	Mat$Mat[i,] = ReadMat[(i*MaxCol-MaxCol+1):(i*MaxCol)];
 }#finfori
 
 #Samp = 50 ;
@@ -706,9 +914,10 @@ while( (W > TabWPrec &&  Iter <= MaxIter) ||  (Iter <= MaxIter) ) {
 	Iter      = Iter + 1;
 } #finwhile
 
+WYA$W	<- W;
+
 #cat("A", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(WYA$A), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 #cat("W", '\n', t(TabW[Iter-1]) , file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(TabW[Iter-1]) , file=get("FileOutput", env=SvcEnv, inherits = FALSE));
-
 #if( (M = memory.size()) > GMHmax ) GMHmax <- M;
 
 return(WYA);
@@ -1443,84 +1652,74 @@ Grid<- function (
     ListSV="",		# list of support vectors
     Cx="", 		# choice of x component to display
     Cy="", 		# choice of y component to display
-    ListMis=""		# list of misclassified data
+    ListMis="",		# list of misclassified data
+    NumPoints="",	# list of grid membership to clusters
+    ClassPoints=""	# list of data points to clusters
     ) {
 
 SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 N       =  get("Ngrid", env=SvcEnv, inherits = FALSE);					
 ListX   <- array(0, N); # we make the list of X values	
 ListY   <- array(0, N); # we make the list of Y values
-ListVec <- array(0, ncol(Mat)-1); # we make random vector
+ListVec <- array(0, 3); # we make random vector
+NRow = nrow(Mat); NCol = ncol(Mat) ;
 							 
 MaxX = get("MaxX", env=SvcEnv, inherits = FALSE);
 MinX = get("MinX", env=SvcEnv, inherits = FALSE);
 MaxY = get("MaxY", env=SvcEnv, inherits = FALSE);
 MinY = get("MinY", env=SvcEnv, inherits = FALSE);
-for(i in 1:N )	{
-	ListX[i] = ( MaxX - MinX )*( (i-1) / N ) + MinX;
-	ListY[i] = ( MaxY - MinY )*( (i-1) / N ) + MinY;
-}
-							 
+
 #zoom+
 plot(NA,NA,xlim=c(MinX,MaxX), ylim=c(MinY,MaxY), xlab="Xgrid", ylab="Ygrid") ; # setting up co
 							
-for(i in 1:N ){
-	for(j in 1:N ){
-		x  = ListX[i]; ListVec[Cx] = x;
-		y  = ListY[j]; ListVec[Cy] = y;
-		R  = RadiusPoint(Vec=ListVec, VA=WYA, Mat=Mat, MatK=MatK);
-		RC = get("RadiusC", env=SvcEnv, inherits = FALSE);
-		r  = get("r", env=SvcEnv, inherits = FALSE);
+KC = get("KChoice", env=SvcEnv, inherits = FALSE);
+q  = get("q", env=SvcEnv, inherits = FALSE);
 
-		#cat("i", i,"\t", "j", j,"  ", "RadiusC", RC, "\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
-		#cat("r", r, "\t", "x", x, "\t", "y", y, "\t", "R", R, "\n", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
-		if(   (RC*RC + r) >=  R*R ){
-		#if(   (RC*RC + 0) >=  R*R ){
-			points(x, y, pch = 24, col = "yellow", bg = "yellow", cex = 1);
-		}
-		else
-			points(x, y, pch = 21, col = "blue", bg = "black", cex = 1)
-	}#finforj
-		
-}#finfori
-							 
-for(i in 1:length(WYA) ){
-	R = RadiusPoint(Vec=Mat[i,1:(ncol(Mat)-1)], VA=WYA, Mat=Mat, MatK=MatK);
-	if(   (RC*RC + r) >=  R*R ){
-	#if(   (RC*RC + 0) >=  R*R ){
-		points(Mat[i,Cx], Mat[i,Cy], pch = 21, col = "red", bg = "red", cex = 1);
+RC = get("RadiusC", env=SvcEnv, inherits = FALSE);
+r  = get("r", env=SvcEnv, inherits = FALSE);
+
+# plots grid
+for(i in 1:(max(NumPoints)+1) ){
+	x		= NumPoints[ (i-1)*6 +3]; 
+	y		= NumPoints[ (i-1)*6 +4];
+	c		= NumPoints[ (i-1)*6 +6];
+	ListX[i]	= ( MaxX - MinX )*( (x) / (N-1) ) + MinX ;
+	ListY[i]	= ( MaxY - MinY )*( (y) / (N-1) ) + MinY ;
+
+	if(   c != 0  ){
+		points(ListX[i], ListY[i], pch = 24, col = "yellow", bg = "yellow", cex = 1);
 	}
 	else
-		points(Mat[i,Cx], Mat[i,Cy], pch = 21, col = "blue", bg = "white", cex = 1)
+		points(ListX[i], ListY[i], pch = 21, col = "blue", bg = "black", cex = 1);
+} #endfori
+
+# plots data points
+for(i in 1:NRow ){
+
+	if( ClassPoints[i] != 0 ){
+		points(Mat[i,1], Mat[i,2], pch = 21, col = "red", bg = "red", cex = 1);
+	}
+	#else
+	#	points(Mat[i,1], Mat[i,2], pch = 24, col = "green", bg = "yellow", cex = 1)
 }#finfori
 
 # plots data numbers being SV, make SV in red
 for(i in 1:length(ListSV) ) {				
 		ISV = ListSV[i];
 		if( !is.na(ISV) )
-			points(Mat[ISV,Cx], Mat[ISV,Cy], pch = 24, col = "red", bg = "yellow", cex = 1)
+			points(Mat[ISV,1], Mat[ISV,2], pch = 24, col = "red", bg = "yellow", cex = 1)
 } #fin for i
 
-# plots misclassified data numbers being IMC, make in green
-NBC = get("NbClassInData", env=SvcEnv, inherits = FALSE ) ;
-if( NBC > 0 ) for(i in 1:length(ListMis)){
-	IMC = ListMis[i];
-	points(Mat[IMC,Cx], Mat[IMC,Cy], pch = 24, col = "green", bg = "yellow", cex = 1)
-} #fin for i
+# plots data misclassified
+if( sum( ListMis[]>0 ) != 0 )
+for(i in 1: sum( ListMis[]>0 ) ){
+	#cat("ListMis[i]", ListMis[i], "\t", "x", Mat[ ListMis[i]+1 ,1], "\t", "y", Mat[ ListMis[i]+1 ,2],  "\n");
+	if( ListMis[i] != 0 ){
+		points(Mat[ ListMis[i]+1 ,1], Mat[ ListMis[i]+1 ,2], pch = 24, col = "green", bg = "green", cex = 1);
+	} #endif
 
-# plots classes , make in 4 colors
-#NRow = nrow(Mat); NCOLCLASS = ncol(Mat) ;
-#for( i in 1:NRow ){
-#	if( Mat[i,NCOLCLASS] == 1 )
-#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "blue" , bg = "blue", cex = 1);
-#	if( Mat[i,NCOLCLASS] == 2 )
-#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "green", bg = "green", cex = 1);
-#	if( Mat[i,NCOLCLASS] == 3 )
-#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "red " , bg = "red", cex = 1);
-#	if( Mat[i,NCOLCLASS] == 4 )
-#		points(Mat[i,Cx], Mat[i,Cy], pch = 24, col = "yellow", bg = "yellow", cex = 1);
-#} #fin for i
+}#finfori
 
 }
 
@@ -2151,7 +2350,7 @@ if(MetLab == 1 ) {
 	NumberCluster = ClusterLabeling(Mat=Matrice$Mat, MatK= MatriceK, cx, cy, WYA=WVectorsYA$A);	# clusters assignment
 	Alert("\t", "ok", "\n");
 	Alert("\t\t", "match grid...", ""); 
-	ClassPoints   = MatchGridPoint(Mat=MatriceEval, Points=NumPoints, Grid=PointGrid, NumCluster=NumberCluster, Cx=cx, Cy=cy, Knn=K);  # cluster assignment
+	ClassPoints   = MatchGridPoint(Mat=MatriceEval, NumCluster=NumberCluster, Cx=cx, Cy=cy, Knn=K);  # cluster assignment
 	Alert("\t\t", "ok", "\n");
 	Alert("\t\t", "evaluation...", "");
 	MisClass      = Evaluation(Mat=MatriceEval, NBClass=NumberCluster, Cx=cx, Cy=cy, ClassPoints=ClassPoints);					# evaluation
@@ -2433,7 +2632,6 @@ CluOutput <- file( file.path(pathOut, paste(DName, "_clu.txt", sep="")) , "w");
 
 #sorting by cluster index
 SortedClassPoints = sort(CPoints, method = "sh", index.return = TRUE);
-print(CPoints); 
 
 #output points class
 for(i in 1:nrow(MatriceVar) ){
@@ -2465,5 +2663,30 @@ cat(bTab, Mes, aTab);flush.console();
 
 
 ########################################################################
+## test function
+########################################################################
+
+#
+TestWrapper <- function()
+{
+
+print("en route...");
+
+#findModelCluster(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris", fileIn="D:\\R\\library\\svcR\\data\\");
+findModelCluster(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris2", fileIn="D:\\R\\library\\svcR\\data\\");
+
+print("fin de svcR");
+
+# done. 
+#
+}
+
+########################################################################
 ##End of program##
 ########################################################################
+
+########################################################################
+## call test function
+########################################################################
+
+#TestWrapper();

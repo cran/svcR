@@ -61,8 +61,8 @@ it mean v1 is the name of first line of the data matrix, v2 is the name of the s
 MetOpt  = 1;    # optimisation method with randomization
 MetLab  = 1;    # grid labelling
 KChoice = 1;    # 0: eucli 1: radial 2: radial+dist 
-Nu      = 0.7; 
-q       = 1200;   # lot of clusters
+Nu      = 1.0; 
+q       = 2000;   # lot of clusters
 K       = 1;    # only 1  nearest neighbour for clustering
 Cx = Cy = 0; # we use principal component analysis factors
 G       = 13; # size of the grid for cluster labelling

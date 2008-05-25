@@ -1,5 +1,0 @@
-findModelCluster        Computation of clustering model by support
-                        vector machine
-iris_att                data matrix
-iris_mat                data matrix
-iris_var                data matrix
