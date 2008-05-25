@@ -738,7 +738,7 @@ MaxValA         = *MxValA;
 AroundNullVA    = *ArouNullVA;
 N               = * nlin;
 
-f = fopen("D:\\R\\library\\svcR\\data\\sortieyy.txt", "a+");
+//f = fopen("D:\\R\\library\\svcR\\data\\sortieyy.txt", "a+");
 
 while( IndiceSV == 0 && i <= N ) {
         if( *(VectorsYA+i) > AroundNullVA && *(VectorsYA+i) < MaxValA )
@@ -765,7 +765,7 @@ else {
 
 //fprintf(f, "\n R %1.6lf \n", *R );
 
-fclose(f); f = 0;
+//fclose(f); f = 0;
 
 return ;
 }
@@ -901,7 +901,7 @@ double  rmax    = 0;
 double  rmin    = 0;
 int     compt   = 0;
 
-f = fopen("D:\\R\\library\\svcR\\data\\sortieyy.txt", "a+");
+//f = fopen("D:\\R\\library\\svcR\\data\\sortieyy.txt", "a+");
 
 nu      = * niu;
 N       = * nlin;
@@ -943,7 +943,7 @@ if( compt != 0)
 *resu = rmax;
 
 //fprintf(f, "\nresu %1.6lf %1.6lf \n", *resu,rmax  );
-fclose(f);f=0;
+//fclose(f);f=0;
 
 return  ;
 }
@@ -1020,7 +1020,7 @@ KC      = *KChoice;
 RadiusC = *RC;
 r       = *smallr;
 
-f = fopen("D:\\R\\library\\svcR\\data\\sortieyy.txt", "a+");
+//f = fopen("D:\\R\\library\\svcR\\data\\sortieyy.txt", "a+");
 
 PointGrid    = calloc( N*N , sizeof(short) );
 RR			 = (RadiusC*RadiusC + r);
@@ -1054,14 +1054,16 @@ for(i = 0; i < N; i++ ){
 } //#finfori
 
 //#sortie test
+/*
 fprintf(f, "Grid \n" );
 for ( j = (N-1); j != -1; j-- ){
         for( i = 0; i < N ; i++ ) {
                 InP = (int) *(PointGrid +i*N + j);
-                fprintf(f, " %2.0lf ", *(NumPoints +InP*6 + 4) );
+                //fprintf(f, " %2.0lf ", *(NumPoints +InP*6 + 4) );
 	} //endforj
-        fprintf(f, "\n" );
+        //fprintf(f, "\n" );
 }  //endfori
+*/
 
 InP             = 0;
 IndLC		= 0;
@@ -1152,7 +1154,7 @@ for(i = 0; i < N; i++ ){
 } //#finfori
 
 //#sortie test
-fprintf(f, "\n" );
+/*fprintf(f, "\n" );
 for ( j = (N-1); j != -1; j-- ){
         for( i = 0; i < N ; i++ ) {
 
@@ -1161,6 +1163,7 @@ for ( j = (N-1); j != -1; j-- ){
 	} //endforj
         fprintf(f, "\n" );
 }  //endfori
+*/
 
 if( ListClusters == 0 )
         return;
@@ -1246,6 +1249,7 @@ for( indListClusters = 1; indListClusters <= NumberCluster ; indListClusters++ )
 } //#finforindListClusters
 
 //#sortie test
+/*
 fprintf(f, "NumberCluster %d\n",NumClus );
 for ( j = (N-1); j != -1; j-- ){
         for( i = 0; i < N ; i++ ) {
@@ -1256,7 +1260,7 @@ for ( j = (N-1); j != -1; j-- ){
 	} //endforj
         fprintf(f, "\n" );
 }  //endfori
-
+*/
 
 //##### end of computation
 
@@ -1265,9 +1269,11 @@ free(ClassConnex);  ClassConnex=0;
 free(ListVec);   ListVec=0;
 free(ListClusters); ListClusters=0;
 
-        fprintf(f, "fini\n" );
+/*
+fprintf(f, "fini\n" );
 fclose(f);
 f = 0;
+*/
 
 return ;
 }
@@ -1634,5 +1640,4 @@ free(ListVecClass);             ListVecClass            = 0;
 return ;
 
 }
-
 //########################################################################

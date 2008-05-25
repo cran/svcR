@@ -1,5 +1,5 @@
 Package: svcR
-Version: 1.4
+Version: 1.4.1
 Date: 2008-05-25
 Title: svcR package
 Author: Nicolas Turenne <nicolas.turenne@jouy.inra.fr>.
@@ -7,4 +7,4 @@ Maintainer: Nicolas Turenne <nicolas.turenne@jouy.inra.fr>
 Depends: R (>= 2.3), spdep, quadprog, ade4
 Description: svcR implements a support vector machine technique for clustering
 License: GPL (version 2 or later)
-Packaged: Tue May 27 22:52:31 2008; Nicolas
+Packaged: Mon Jul 14 16:16:21 2008; Nicolas
