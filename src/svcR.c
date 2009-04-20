@@ -15,6 +15,15 @@ int Compare( const void *a, const void *b)
    return ( *(int *) a - *(int *)b );
 }
 
+int cmpint (const void * it1, const void * it2)
+{
+   int i1 = *(int *) it1;
+   int i2 = *(int *) it2;
+   if (i1 > i2) return 1;
+   else if (i1 < i2) return -1;
+   else return 0;
+}
+
 //---------------------------------------------------------------------------
 
 void SizeMat_C( char **NomFile,	double   * ListMax ) {
@@ -1165,8 +1174,15 @@ for ( j = (N-1); j != -1; j-- ){
 }  //endfori
 */
 
-if( ListClusters == 0 )
-        return;
+if( ListClusters == 0 || ListClusters[0] == 0 ){
+	free(PointGrid);	PointGrid=0;
+	free(ListVec);		ListVec=0;
+	free(ListClusters);	ListClusters=0;
+	//fprintf(f, "fini\n" );
+	//fclose(f);
+	//f = 0;
+	return;
+}
 
 //#calcul de la matrice de connexite entre classes
 NumberCluster = (short) ListClusters[0];
@@ -1269,11 +1285,9 @@ free(ClassConnex);  ClassConnex=0;
 free(ListVec);   ListVec=0;
 free(ListClusters); ListClusters=0;
 
-/*
-fprintf(f, "fini\n" );
+/*fprintf(f, "fini\n" );
 fclose(f);
-f = 0;
-*/
+f = 0;*/
 
 return ;
 }
@@ -1376,7 +1390,7 @@ NPoint  = *nlin;
 
 //f = fopen("D:\\R\\library\\svcR\\data\\sortieyy.txt", "a+");
 
-PointGrid    = calloc( NG*NG , sizeof(int) );
+PointGrid    = (int*) calloc( NG*NG , sizeof(int) );
 
 for(i = 0; i < NG; i++ ){
         for(j = 0; j < NG; j++ ){
@@ -1395,7 +1409,7 @@ for( i = 0; i < NPoint; i++ ){
 	if( Xi >= NG) Xi = NG-1; if(Yi >= NG) Yi = NG-1;
 	if( Xi <  0  ) Xi = 0;   if( Yi <  0 ) Yi = 0;
 
-	ScoreNeighbours = calloc( (NumCluster+1) , sizeof(int) );
+	ScoreNeighbours = (int*) calloc( (NumCluster+1) , sizeof(int) );
 
 	ComptRecii        = 1;
 	for( ii = (Xi-1); ComptRecii <= 3; ii++ ){
@@ -1412,7 +1426,7 @@ for( i = 0; i < NPoint; i++ ){
 
 				ActualPoint = *(PointGrid +ii*NG + jj) ;
 
-				if( *(NumPoints +ActualPoint*6 + 5) != 0 ){
+				if( *(NumPoints +ActualPoint*6 + 5) != 0 && *(NumPoints +ActualPoint*6 + 5) < (NumCluster+1) ){
 					NumClass                    = *(NumPoints +ActualPoint*6 + 5);
 					*(ScoreNeighbours+NumClass) = *(ScoreNeighbours+NumClass) + 1 ;
 				} //#endif
@@ -1467,7 +1481,7 @@ short   *       CardLabelClass          = 0;
 int             NBClass                 = 0;
 int             NBCluster               = 0;
 short   *       BestClass	        = 0;
-int     *       ListVecClass	        = 0;
+int     **       ListVecClass	        = 0;
 int             IndClass                = 0;
 int             IndListMis	        = 0;
 int             N                       = 0;
@@ -1490,34 +1504,44 @@ NumColClass     = *ncol;
 //fprintf(f, " %d \n", N );
 //fprintf(f, " %d \n", NumColClass );
 
-/*fprintf(f, " Evaluation_C \n" );
+/*fprintf(f, " Evaluation_C ClassPoints \n" );
 for( i = 0; i < N; i++ ){
 fprintf(f, " %d \t %lf \n", i, (double) *(ClassPoints+i) );
 } //#finfori
 */
 
-ListSortedItemsByClass  = calloc( N , sizeof(int) );
+if( N < 2 && NBCluster < 1 ){
+	//fclose(f);
+	//f = 0;
+	return;
+}
+
+ListSortedItemsByClass  = (int*) calloc( N , sizeof(int) ); 
+
 for( i = 0; i < N; i++  ){
         *(ListSortedItemsByClass+i) = (int) *(DataMatrix+i*NumColClass+ NumColClass-1);
-} //endfori
-qsort( (int*)ListSortedItemsByClass , N , sizeof(int) , Compare);
+} //endfori 
 
-NBClass = ListSortedItemsByClass[N-1];
+qsort( (int*)ListSortedItemsByClass , N , sizeof(int) , cmpint); 
+
+//fclose(f); f = 0; return;
+NBClass = ListSortedItemsByClass[N-1]; 
 
 //#output points class
-/*fprintf(f, " Evaluation_C \n" );
+
+/*fprintf(f, " Evaluation_C ListSorted \n" );
 for( i = 0; i < N; i++ ){
  fprintf(f, " %d \t %d \n", i, *(ListSortedItemsByClass+i) );
 } //#finfori
 */
 
-LabelClass              = calloc( N+1 , sizeof(short) );
-CardLabelClass          = calloc( N+1 , sizeof(short) );
+LabelClass              = (short*) calloc( NBClass*10 , sizeof(short) );
+CardLabelClass          = (short*) calloc( NBClass*10 , sizeof(short) );
 
 NBClass                 = 1;
 LabelClass[NBClass]     = (short) ListSortedItemsByClass[0];
 CardLabelClass[NBClass] = (short) 1;
-if( N > 1 )
+
 for( i = 1; i < N; i++  ){
 	if( ListSortedItemsByClass[i] == ListSortedItemsByClass[i-1] ){
 		CardLabelClass[NBClass] = (short) CardLabelClass[NBClass] + 1;
@@ -1525,24 +1549,26 @@ for( i = 1; i < N; i++  ){
 	else {
 		NBClass		        = NBClass + 1;
 		LabelClass[NBClass]     = (short) ListSortedItemsByClass[i];
-                CardLabelClass[NBClass] = (short) 1;
+        CardLabelClass[NBClass] = (short) 1;
 	} //#endif
 
 } //#finfori
 
+
 //#output points class
-/*fprintf(f, "\n\n Evaluation_C \n" );
+/*fprintf(f, "\n\n Evaluation_C LabelClass \n" );
 for( i = 1; i <= NBClass; i++ ){
  fprintf(f, " %d \t %d \t %d \n", i, LabelClass[i], CardLabelClass[i] );
 } //#finfori
 */
 
-BestClass          = calloc( 3*NBClass , sizeof(short) );
-ListVecClass       = calloc( NBClass+1 , sizeof(int) );
+BestClass          = (short*) calloc( 10*NBClass , sizeof(short) );
+ListVecClass       = (int*)   calloc( 10*NBClass , sizeof(int) );
+
 
 for( IndClass = 1; IndClass <= NBClass; IndClass++  ){
 
-        ListVecClass[ IndClass ]                = calloc( 1 , sizeof(int) );
+        ListVecClass[ IndClass ]                = (int*) calloc( 1 , sizeof(int) );
         *( (int*)ListVecClass[IndClass]+0)      = (int) 0;
 
 } //endforIndClass
@@ -1558,15 +1584,15 @@ for( i = 0; i < N; i++ ){
 for( IndClass = 1; IndClass <= NBClass; IndClass++  ) {
 
         SizeVec = (int) *( (int*)(ListVecClass[ (short) LabelClass[IndClass] ])+ 0);
-        qsort( (int*) (ListVecClass[(short)LabelClass[IndClass]]+1) , SizeVec , sizeof(int) , Compare);
+        qsort( (int*) (ListVecClass[(short)LabelClass[IndClass]]+1) , SizeVec , sizeof(int) , cmpint);
 
         //#output points class
-      /*  fprintf(f, " \n\nListVecClass \n" );
-        for( i = 0; i < (int) *( (int*)(ListVecClass[ LabelClass[IndClass] ])+ 0); i++ ){
-                Elem = (int) *( (int*)(ListVecClass[ LabelClass[IndClass] ])+ (i+1)) ;
-                fprintf(f, " %d \t %d \n", i, Elem );
-        } //#finfori
-     */
+      //  fprintf(f, " \n\nListVecClass \n" );
+      //  for( i = 0; i < (int) *( (int*)(ListVecClass[ LabelClass[IndClass] ])+ 0); i++ ){
+      //          Elem = (int) *( (int*)(ListVecClass[ LabelClass[IndClass] ])+ (i+1)) ;
+      //          fprintf(f, " %d \t %d \n", i, Elem );
+      //  } //#finfori
+     
 	Counter    = 1;
 
         *(BestClass+IndClass*2+ 2) = (short) 1;
@@ -1596,13 +1622,11 @@ for( IndClass = 1; IndClass <= NBClass; IndClass++  ) {
 }//#finIndClass
 
 //#output points class
-/*fprintf(f, "\n\n BestClass \n" );
-for( IndClass = 1; IndClass <= NBClass; IndClass++ ){
- fprintf(f, "IndClass %d \t %d \t %d \n", IndClass, *(BestClass+IndClass*2+ 2), *(BestClass+IndClass*2+ 1) );
-} //#finfori
-*/
+//fprintf(f, "\n\n BestClass \n" );
+//for( IndClass = 1; IndClass <= NBClass; IndClass++ ){
+// fprintf(f, "IndClass %d \t %d \t %d \n", IndClass, *(BestClass+IndClass*2+ 2), *(BestClass+IndClass*2+ 1) );
+//} //#finfori
 
-Precision  = 0;
 for( IndClass = 1; IndClass <= NBClass; IndClass++  )
         if( *(BestClass+IndClass*2+ 1) != 0 )
 	        Precision = Precision + *(BestClass+IndClass*2+ 2);
@@ -1614,8 +1638,8 @@ for( i = 0; i < N; i++ ) {
 	        if( (int)*(DataMatrix+i*NumColClass+NumColClass-1) == (short) LabelClass[IndClass] ){
 
 		        if( *(BestClass+IndClass*2+ 1) != ClassPoints[i] || *(BestClass+IndClass*2+ 1) == 0 ) {
-				ListMis[IndListMis] = (double)i ;
-				IndListMis          = IndListMis + 1;
+					ListMis[IndListMis] = (double)i ;
+					IndListMis          = IndListMis + 1;
 			} //#endIf
                         
 		} //#endIf
@@ -1624,16 +1648,17 @@ for( i = 0; i < N; i++ ) {
 
 //#output points class
 
-/*fprintf(f, "\n\n Precision \t %lf \t IndListMis %d \n", Precision , IndListMis);
-for( i = 0; i < N; i++ ){
- fprintf(f, " %d \t %lf \n", i, ListMis[i] );
-} //#finfori
-*/
+//fprintf(f, "\n\n Precision \t %lf \t IndListMis %d \n", Precision , IndListMis);
+//for( i = 0; i < N; i++ ){
+// fprintf(f, " %d \t %lf \n", i, ListMis[i] );
+//} //#finfori
+
 
 free(ListSortedItemsByClass);   ListSortedItemsByClass  = 0;
 free(BestClass);                BestClass               = 0;
 free(ListVecClass);             ListVecClass            = 0;
-
+free(LabelClass);				LabelClass				= 0;
+free(CardLabelClass);			CardLabelClass			= 0;
 //fclose(f);
 //f = 0;
 

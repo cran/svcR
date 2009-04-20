@@ -1,2 +1,41 @@
+export(	
+       ## kernel functions
+       "kernelMatrix.compute",
+	
+       ## High level functions 
+       "findModelCluster",
+       "findModelCluster.Eval",
+       "findModelCluster.Test",
+       "findModelCluster.chargeMatrix",
+
+       ## Utility functions
+       
+       ## svc model
+       "ModelSV.compute",
+       
+       ## cluster labelling
+       "Labelling.compute",
+       "KNN_labelling",
+       "MST_labelling",
+       "Adjacency",
+       "AdjacencyPP",
+
+       ## evaluation 
+       "ClusterEval.Pvalue",
+       "DataSampling",
+       "ClusterEval.crossval",
+       "ClusterEval.final",
+       "ClusterEval.scalable",
+       "ClusterEval.clusterable",
+
+       ## interface
+       "ExportClusters",
+       "Summary"
+       )
+
+importFrom("graphics","plot")
+
+exportClasses("findModelCluster", "kernelMatrix", "ModelSV", 
+              "Labelling", "ClusterEval")
+
 useDynLib(svcR)
-export(findModelCluster)

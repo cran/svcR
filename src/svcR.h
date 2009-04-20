@@ -28,6 +28,7 @@ void MinMaxMat_C (	double	* matrix,
 					double	* MinMaxXY);
 
 int	Compare( const void *a, const void *b);
+int cmpint (const void * it1, const void * it2);
 
 void     calcKernelMatrix_C (   double	* matrix, 
 								int		* MatDist, 
