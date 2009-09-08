@@ -31,7 +31,7 @@
 ## exemple with iris data
 
 #model computation
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
 #precision assessment
 P = ClusterEval.Pvalue(fmc);

@@ -32,9 +32,9 @@
 
 ## exemple with iris data
 
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
-fmc@MatriceK; # kernel matrix
+getMatriceK(fmc); # kernel matrix
 
 }
 

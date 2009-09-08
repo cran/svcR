@@ -3,10 +3,15 @@ export(
        "kernelMatrix.compute",
 	
        ## High level functions 
-       "findModelCluster",
-       "findModelCluster.Eval",
-       "findModelCluster.Test",
-       "findModelCluster.chargeMatrix",
+       "findSvcModel",
+       "findSvcModel.Eval",
+       "findSvcModel.Test",
+       "findSvcModel.chargeMatrix",
+       "findSvcModel.chargeMatrixHDD",
+       "getlagrangeCoeff",
+       "getClassPoints",
+       "getMatriceK",
+       "getNumPoints",
 
        ## Utility functions
        
@@ -30,12 +35,15 @@ export(
 
        ## interface
        "ExportClusters",
-       "Summary"
+       "Summary",
+       "GetClustersTerm",
+       "GetClusterID",
+       "ShowClusters"
        )
 
 importFrom("graphics","plot")
 
-exportClasses("findModelCluster", "kernelMatrix", "ModelSV", 
+exportClasses("findSvcModel", "kernelMatrix", "ModelSV", 
               "Labelling", "ClusterEval")
 
 useDynLib(svcR)

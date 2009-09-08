@@ -1,11 +1,11 @@
-\name{iris_att}
+\name{term_att}
 \docType{data}
-\alias{iris_att}
+\alias{term_att}
 \title{data matrix}
 \description{ 
      this data ...
 }
-\usage{data(iris_att)}
+\usage{data(term_att)}
 \format{ a matrix of data }
 \source{ a matrix of data }
 \references{ a matrix of data }

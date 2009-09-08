@@ -12,7 +12,7 @@
 \section{Slots}{
   \describe{
 
-    \item{\code{VectorWA}:}{Object of class \code{"list"} contains
+    \item{\code{lagrangeCoeff}:}{Object of class \code{"list"} contains
       the lagrange coefficients : VectorWA\$A }
 
     \item{\code{RadiusC}:}{Object of class \code{"numeric"} contains
@@ -35,9 +35,10 @@
 
 ## exemple with iris data
 
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
-fmc@WVectorsYA$A; # lagrange coefficients
+L = getlagrangeCoeff(fmc); # catch lagrange coefficients
+L$A;                       # lagrange coefficients computed in the model
 
 }
 

@@ -8,12 +8,12 @@
 \alias{ClusterEval.crossval}
 \alias{ClusterEval.final}
 \alias{ClusterEval.clusterable}
-\alias{ClusterEval.scalable,findModelCluster-method}
-\alias{ClusterEval.Pvalue,findModelCluster-method}
+\alias{ClusterEval.scalable,findSvcModel-method}
+\alias{ClusterEval.Pvalue,findSvcModel-method}
 \alias{DataSampling,matrix-method}
-\alias{ClusterEval.crossval,findModelCluster-method}
-\alias{ClusterEval.final,findModelCluster-method}
-\alias{ClusterEval.clusterable,findModelCluster-method}
+\alias{ClusterEval.crossval,findSvcModel-method}
+\alias{ClusterEval.final,findSvcModel-method}
+\alias{ClusterEval.clusterable,findSvcModel-method}
 
 \title{ Computation of evaluation }
 
@@ -22,24 +22,24 @@ Set of functions making evaluation. It requires a class column in data.
 }
 
 \usage{
-\S4method{ClusterEval.Pvalue}{findModelCluster}(x=NULL)
+\S4method{ClusterEval.Pvalue}{findSvcModel}(x=NULL)
 
 \S4method{DataSampling}{matrix}(DatMat=matrix())
 
-\S4method{ClusterEval.crossval}{findModelCluster}(x=NULL)
+\S4method{ClusterEval.crossval}{findSvcModel}(x=NULL)
 
-\S4method{ClusterEval.final}{findModelCluster}(x=NULL)
+\S4method{ClusterEval.final}{findSvcModel}(x=NULL)
 
-\S4method{ClusterEval.scalable}{findModelCluster}(x=NULL)
+\S4method{ClusterEval.scalable}{findSvcModel}(x=NULL)
 
-\S4method{ClusterEval.clusterable}{findModelCluster}(x=NULL)
+\S4method{ClusterEval.clusterable}{findSvcModel}(x=NULL)
 }
 
 \arguments{
 
-  \item{x}{ a findModelCluster object }
+  \item{x}{ a findSvcModel object }
 
-  \item{DatMat}{ iris matrix obtain from a run with findModelCluster function }
+  \item{DatMat}{ iris matrix obtain from a run with findSvcModel function }
   
 }
 
@@ -66,7 +66,7 @@ makes evaluation with a set of q paramter values and a set of nu parameter value
 ## exemple with iris data
 
 # generation of the svc model
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
 # catch evaluation value
 P = ClusterEval.Pvalue( fmc );

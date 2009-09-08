@@ -6,11 +6,11 @@
 \alias{Adjacency}
 \alias{MST_labelling}
 \alias{KNN_labelling}
-\alias{Labelling.compute,findModelCluster-method}
-\alias{AdjacencyPP,findModelCluster-method}
-\alias{Adjacency,findModelCluster-method}
-\alias{MST_labelling,findModelCluster-method}
-\alias{KNN_labelling,findModelCluster-method}
+\alias{Labelling.compute,findSvcModel-method}
+\alias{AdjacencyPP,findSvcModel-method}
+\alias{Adjacency,findSvcModel-method}
+\alias{MST_labelling,findSvcModel-method}
+\alias{KNN_labelling,findSvcModel-method}
 
 \title{ Computation of clustering model by support vector machine }
 
@@ -19,7 +19,7 @@ Labelling methods try to identify clusters in a grid.
 }
 
 \usage{
-\S4method{Labelling.compute}{findModelCluster}(x, 	
+\S4method{Labelling.compute}{findSvcModel}(x, 	
 		MetLab		= 1, 	
 		MatriceKernel	= MK, 	
 		MatriceK	= M_K, 	
@@ -34,26 +34,26 @@ Labelling methods try to identify clusters in a grid.
 		KernChoice	= 0.01, 	
 		NbClassInData	= 0.01  )
 
-\S4method{AdjacencyPP}{findModelCluster}(x, MatriceKernel=matrix(), Vec1=vector(), Vec2=vector())
+\S4method{AdjacencyPP}{findSvcModel}(x, MatriceKernel=matrix(), Vec1=vector(), Vec2=vector())
 
-\S4method{Adjacency}{findModelCluster}(x, MatriceKernel=matrix())
+\S4method{Adjacency}{findSvcModel}(x, MatriceKernel=matrix())
 
-\S4method{MST_labelling}{findModelCluster}(x, MatriceKernel=matrix())
+\S4method{MST_labelling}{findSvcModel}(x, MatriceKernel=matrix())
 
-\S4method{KNN_labelling}{findModelCluster}(x, MatriceKernel=matrix())
+\S4method{KNN_labelling}{findSvcModel}(x, MatriceKernel=matrix())
 }
 
 \arguments{
 
-  \item{x}{ a findModelCluster object }
+  \item{x}{ a findSvcModel object }
 
-  \item{MetLab}{ option taking value 1 (grid labelling) or 2 (mst labelling) or 3 (knn labelling) }
+  \item{MetLab}{ option taking value "gridLabeling" (grid labelling) or "mstLabeling" (mst labelling) or "knnLabeling" (knn labelling) }
 
   \item{MatriceKernel}{ kernel matrix with vector format }
 
   \item{MatriceK}{ kernel matrix with vector format }
   
-  \item{pp}{ option taking value 0 (Euclidian) or 1 (RBF) or 2 (Exponential) }
+  \item{pp}{ full matrix as a vector }
   
   \item{Nu}{ kernel parameter  }
   
@@ -78,7 +78,7 @@ Labelling methods try to identify clusters in a grid.
   \item{Vec2}{ vector for computing adjacency }
 }
 
-%\details{ }
+%\details{ Labelling.compute is a function used internally in findSvcModel function }
 
 \value{
   An S4 object of class \code{labelling} 
@@ -87,7 +87,7 @@ Labelling methods try to identify clusters in a grid.
   \item{ClassPoints}{class of grid points}
   \item{NumPoints}{value fo grid points}
 
-  slots can be accessed by \code{object@slot}
+  slots can not be accessed.
 }
 
 \references{ N.Turenne , Some Heuristics to speed-up Support Vector Clustering , technical report 2006, INRA, France 
@@ -100,9 +100,9 @@ Labelling methods try to identify clusters in a grid.
 
 ## exemple with iris data
 
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
-fmc@NumPoints; # values of the grid
+getNumPoints(fmc); # values of the grid
 
 }
 

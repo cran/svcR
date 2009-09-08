@@ -20,7 +20,7 @@ ModelSV.compute <- function (  x ,
 WYA <- list(W="",Y="",A="")
 
 if( x == 1 ){ 
-	VectorWA =   .C("CalcWcluster_C",
+	lagrangeCoeff =   .C("CalcWcluster_C",
 			as.vector(MatriceKernel), 
 			as.integer(MaxIter), 
 			as.integer(nlin), 
@@ -30,8 +30,8 @@ if( x == 1 ){
 			as.integer(100000), 
 			as.double(AroundNull),
 			iVectorsYA = numeric(2*nlin+1) )$iVectorsYA ;
-	WYA$A = VectorWA[1:nlin]; 
-	#print(WVectorsYA$A);
+	WYA$A = lagrangeCoeff[1:nlin]; 
+	#print(lagrangeCoeff$A);
 	#print(MatriceKernel);
 }
 else
@@ -41,7 +41,7 @@ Alert("", "ok", "\n");
 
 Alert("", "radius computation...", "\t\t"); 
 RadiusC =   .C("RadiusCluster",     
-			as.vector(VectorWA[1:nlin]), 
+			as.vector(lagrangeCoeff[1:nlin]), 
 			as.integer(nlin), 
 			as.double(MaxValA), 
 			as.double(AroundNullVA), 
@@ -51,11 +51,11 @@ SmallR =   .C("SmallR",
 		as.integer(nlin), 
 		as.double(RadiusC), 
 		as.double(Nu), 
-		as.vector(VectorWA) , 
+		as.vector(lagrangeCoeff) , 
 		as.vector(MatriceKernel) , 
 		iResu = numeric(1) )$iResu ;
 
-    return( new( "ModelSV", VectorWA = WYA, RadiusC = RadiusC, SmallR = SmallR ) )
+    return( new( "ModelSV", lagrangeCoeff = WYA, RadiusC = RadiusC, SmallR = SmallR ) )
 }
 setMethod("ModelSV",signature(x="numeric"), ModelSV.compute)
 

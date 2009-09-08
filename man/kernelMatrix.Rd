@@ -34,8 +34,8 @@ Euclidian, Radial-Base and Exponential.
 
   \item{nlin}{ number of lines of the data matrix }
 
-  \item{KernChoice}{ option taking value 0 (Euclidian) or 1 (RBF) or 2 (Exponential) }
-}
+  \item{KernChoice}{ option taking value "KernLinear" (Euclidian) or "KernGaussian" (RBF) or "KernGaussianDist" (Exponential) or "KernDist" (Matrix data as Kernel value) }
+} 
 
 %\details{}
 
@@ -46,7 +46,7 @@ Euclidian, Radial-Base and Exponential.
   \item{matrixKernel}{kernel matrix with a vector format}
   \item{matrixK}{kernel matrix with a matrix format}
 
-  slots can be accessed by \code{object@slot}
+  slots can not be accessed.
 }
 
 \references{ N.Turenne , Some Heuristics to speed-up Support Vector Clustering , technical report 2006, INRA, France 
@@ -59,9 +59,9 @@ Euclidian, Radial-Base and Exponential.
 
 ## exemple with iris data
 
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
-fmc@MatriceK;
+getMatriceK(fmc); # kernel matrix
 
 }
 

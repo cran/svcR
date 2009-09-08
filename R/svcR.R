@@ -5,8 +5,9 @@
 ########################################################################
 
 ## History of this library 
-##  svcR # 2005-2008
+##  svcR # 2005-2009
 ##   written  by Nicolas Turenne  
+##                 # v1.6     beta  release      # Sep-10-09   
 ##                 # v1.5     beta  release      # Apr-20-09   
 ##                 # v1.4     beta  release      # May-20-08   
 ##                 # v1.3     beta  release      # Jun-20-07   
@@ -26,43 +27,62 @@ library(quadprog)
 library(ade4)
 library(spdep)
 
-#dyn.load("D:\\RBuild\\svcR\\src\\svcR.dll");
-
-
 ########################################################################
 # Main function (SVC)
 ########################################################################
 
 # Usage:
-#   ret = findModelCluster( as.integer(1), MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris", fileIn="D:\\R\\library\\svcR\\")
+#   ret = findSvcModel( iris, MetOpt="optimStoch", MetLab="gridLabeling", KernChoice="KernGaussian", Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2)
 #
 
-setGeneric("findModelCluster", function(x,...) standardGeneric("findModelCluster"))
 
-setMethod("findModelCluster", signature(x="integer"),
+
+setGeneric("findSvcModel", function(x,...) standardGeneric("findSvcModel"))
+
+setMethod("findSvcModel", signature(x="list"),
 function (
-  x = as.integer(1),
-  MetLab	=1,			
-  KernChoice	=1,			 
+  x		= iris,		# data frame
+  MetOpt	="optimStoch",			
+  MetLab	="gridLabeling",			
+  KernChoice	="KernGaussian",			 
   Nu		=0.8,			
   q		=20,			# q parameter
   K		=1,			# k parameter, k nearest neigbours for grid
   G		=10,			# g parameter, grid size
   Cx		=1.,			# choice of x component to display
-  Cy		=2.,			# choice of y component to display
-  DName		="iris",		# data name
-  fileIn	=""
+  Cy		=2. 			# choice of y component to display
  ) {
 
-MetOpt = x;
+dataFrame=x;
 
-ret <- new("findModelCluster");
+mOpt=kChoice=mLab=0;
+if( is.character(MetOpt) ) 
+	MetOpt <- match.arg(MetOpt,c("optimStoch","optimQuad"))
+
+if(       MetOpt == "optimStoch"	){ mOpt = 1 }
+else if ( MetOpt == "optimQuad"		){ mOpt = 2 }
+
+if( is.character(MetLab) ) 
+	MetLab <- match.arg(MetLab,c("gridLabeling","mstLabeling", "knnLabeling"))
+
+if(       MetLab == "gridLabeling"	){ mLab = 1 }
+else if ( MetLab == "mstLabeling"	){ mLab = 2 }
+else if ( MetLab == "knnLabeling"	){ mLab = 3 }
+
+if( is.character(KernChoice) ) 
+	KernChoice <- match.arg(KernChoice,c("KernLinear","KernGaussian", "KernGaussianDist", "KernDist"))
+
+if(       KernChoice == "KernLinear"       ){ kChoice = 0 }
+else if ( KernChoice == "KernGaussian"     ){ kChoice = 1 }
+else if ( KernChoice == "KernGaussianDist" ){ kChoice = 2 }
+else if ( KernChoice == "KernDist"         ){ kChoice = 3 }
+
+ret <- new("findSvcModel");
 
 ret@Cx		= Cx;
 ret@Cy		= Cy;
 ret@Nu		= Nu;
-ret@DName	= DName;
-ret@fileIn	= fileIn;
+ret@dataFrame	= dataFrame;
 
 # Global Mem Heap
 GMHmax = 0;
@@ -86,7 +106,7 @@ AroundNullVA		= 0.000005;
 ret@AroundNullVA	= AroundNullVA;
 
 # Data Structure of Criterium
-WVectorsYA <- list(W="",Y="",A="")
+lagrangeCoeff <- list(W="",Y="",A="")
 
 #Data Matrice structure
 Matrice             <- list(Sparse="",Mat="",Var="",Att="");
@@ -110,8 +130,7 @@ fileName   = 0;
 FileOutput = 0;						  # output connection
 
 Precision  = 0;
-
-Error = findModelCluster.IsError(MetOpt, MetLab, KernChoice, Nu, q, K, G, Cx, Cy, DName, fileIn);
+Error = findSvcModel.IsError(mOpt, mLab, kChoice, Nu, q, K, G, Cx, Cy, dataFrame, fileIn);
 
 ##parameters init
 TimeNow    <- proc.time();			# catch time reference
@@ -119,7 +138,7 @@ TimeNow    <- proc.time();			# catch time reference
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
 Alert("", "loading matrix...", "\t\t");
-Matrice    <- findModelCluster.chargeMatrix( DName,  fileIn);		# data matrix structure loading
+Matrice    <- findSvcModel.chargeMatrix( dataFrame );		# data matrix structure loading
 Alert("", "ok", "\n");
 
 ret@Data = Matrice$Mat;
@@ -175,11 +194,12 @@ NbClassInData = max( Matrice$Mat[,(NumberPCA+1)] );
 Alert("", "ok", "\n");
 
 Alert("", "kernel matrix...", "\t\t");
-if( KernChoice == 2) SymMat = 1;
+if( kChoice == 2 || kChoice == 3 ) SymMat = 1;
 
-MK            = kernelMatrix.compute(pp, SymMat, q, ncol, nlin, KernChoice);
+MK            = kernelMatrix.compute(pp, SymMat, q, ncol, nlin, kChoice);
 MatriceKernel = MK@matrixKernel;
 MatriceK      = MK@matrixK;
+ret@MatriceK  = MK@matrixK;
 
 Alert("", "ok", "\n"); 
 
@@ -188,15 +208,15 @@ Alert("", "lagrange coefficients...", "\t");
 
 MaxValA		=  1 / ( Nu * nrow(ret@Matrice$Mat) ); # MaxVal A[i]  valeur quasi optimale pour 2*1/N 
 
-Model		= ModelSV.compute(MetOpt, MatriceKernel, MatriceK, Nu, nlin, MaxIter, MaxValA, AroundNull,AroundNullVA);
-ret@WVectorsYA	= Model@VectorWA;
-RadiusC		= Model@RadiusC;
-r		= Model@SmallR;
+Model			= ModelSV.compute(mOpt, MatriceKernel, MatriceK, Nu, nlin, MaxIter, MaxValA, AroundNull,AroundNullVA);
+ret@lagrangeCoeff	= Model@lagrangeCoeff;
+RadiusC			= Model@RadiusC;
+r			= Model@SmallR;
 
 Alert("", "ok", "\n");
 cat("\t\t\t", "radiusC ", RadiusC, "\t", "smallr ", r, "\n");					
 
-Lab = Labelling.compute ( ret, MetLab, MatriceKernel, MatriceK, pp,  Nu, G, q, ncol, nlin, RadiusC, r , KernChoice, NbClassInData) ;
+Lab = Labelling.compute ( ret, mLab, MatriceKernel, MatriceK, pp,  Nu, G, q, ncol, nlin, RadiusC, r , kChoice, NbClassInData) ;
 ret@ClassPoints	= Lab@ClassPoints;
 ret@NumPoints	= Lab@NumPoints;
 
@@ -212,11 +232,11 @@ return( ret );
 ########################################################################
 
 # Usage:
-#   ret = findModelCluster.Test()
+#   ret = findSvcModel.Test()
 #
    
-findModelCluster.Test <- function (
-  MetOpt	=1	,			
+findSvcModel.Test <- function (
+  MetOpt	=1,			
   MetLab	=1,			
   KernChoice	=1,			 
   Nu		=0.8,			
@@ -225,16 +245,14 @@ findModelCluster.Test <- function (
   G		=10,			# g parameter, grid size
   Cx		=0,			# choice of x component to display
   Cy		=0,			# choice of y component to display
-  DName		="iris",		# data name
-  fileIn	=""			# a file path of data
+  dataFrame	=iris			# data name
  ) {
-ret <- new("findModelCluster")
+ret <- new("findSvcModel")
 
 ret@Cx		= Cx;
 ret@Cy		= Cy;
 ret@Nu		= Nu;
-ret@DName	= DName;
-ret@fileIn	= fileIn;
+ret@dataFrame	= dataFrame;
 
 # Global Mem Heap
 GMHmax = 0;
@@ -250,7 +268,7 @@ AroundNullVA		= 0.000005;
 ret@AroundNullVA	= AroundNullVA;
 
 # Data Structure of Criterium
-WVectorsYA <- list(W="",Y="",A="")
+lagrangeCoeff <- list(W="",Y="",A="")
 
 #Data Matrice structure
 Matrice             <- list(Sparse="",Mat="",Var="",Att="");
@@ -275,7 +293,7 @@ FileOutput = 0;						  # output connection
 
 Precision  = 0;
 
-Error = findModelCluster.IsError(MetOpt, MetLab, KernChoice, Nu, q, K, G, Cx, Cy, DName, fileIn);
+Error = findSvcModel.IsError(MetOpt, MetLab, KernChoice, Nu, q, K, G, Cx, Cy, dataFrame);
 
 ##parameters init
 TimeNow    <- proc.time();			# catch time reference
@@ -284,11 +302,11 @@ fileName = file.path(tempdir(), "sortie.txt");
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
 Alert("", "loading matrix...", "\t\t");
-Matrice    <- findModelCluster.chargeMatrix( DName,  fileIn);		# data matrix structure loading
+Matrice    <- findSvcModel.chargeMatrix( dataFrame );		# data matrix structure loading
 Alert("", "ok", "\n");
 
-ret@Data = Matrice$Mat;
-
+ret@Data =  Matrice$Mat ;
+ 
 Alert("", "two-feature selection...", "\t");
 NumberPCA = 2;
 if( cx != 0 ) { 
@@ -340,11 +358,12 @@ NbClassInData = max( Matrice$Mat[,(NumberPCA+1)] );
 Alert("", "ok", "\n");
 
 Alert("", "kernel matrix...", "\t\t");
-if( KernChoice == 2) SymMat = 1;
+if( KernChoice == 2 || KernChoice == 3 ) SymMat = 1;
 
 MK            = kernelMatrix.compute(pp, SymMat, q, ncol, nlin, KernChoice);
 MatriceKernel = MK@matrixKernel;
 MatriceK      = MK@matrixK;
+ret@MatriceK  = MK@matrixK;
 
 Alert("", "ok", "\n"); 
 
@@ -352,12 +371,12 @@ Alert("", "ok", "\n");
 Alert("", "lagrange coefficients...", "\t");
 #assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
 
-MaxValA		=  1 / ( Nu * nrow(ret@Matrice$Mat) ); # MaxVal A[i]  valeur quasi optimale pour 2*1/N 
+MaxValA			=  1 / ( Nu * nrow(ret@Matrice$Mat) ); # MaxVal A[i]  valeur quasi optimale pour 2*1/N 
 
-Model		= ModelSV.compute(MetOpt, MatriceKernel, MatriceK, Nu, nlin, MaxIter, MaxValA, AroundNull,AroundNullVA);
-ret@WVectorsYA	= Model@VectorWA;
-RadiusC		= Model@RadiusC;
-r		= Model@SmallR;
+Model			= ModelSV.compute(MetOpt, MatriceKernel, MatriceK, Nu, nlin, MaxIter, MaxValA, AroundNull,AroundNullVA);
+ret@lagrangeCoeff	= Model@lagrangeCoeff;
+RadiusC			= Model@RadiusC;
+r			= Model@SmallR;
 
 Alert("", "ok", "\n");
 cat("\t\t\t", "radiusC ", RadiusC, "\t", "smallr ", r, "\n");					
@@ -372,17 +391,17 @@ invisible(gc());				# freeing memory
 
 return( ret );
 } 
-setMethod("findModelCluster",signature( x="missing" ), findModelCluster.Test );
+setMethod("findSvcModel",signature( x="missing" ), findSvcModel.Test );
 
 ########################################################################
 # Main function (SVC) - Evaluation usage variant
 ########################################################################
 
 # Usage:
-#   findModelCluster.Eval(x)
+#   findSvcModel.Eval(x)
 #
    
-findModelCluster.Eval <- function (
+findSvcModel.Eval <- function (
   x,
   MetOpt	=1,			
   MetLab	=1,			
@@ -393,17 +412,15 @@ findModelCluster.Eval <- function (
   G		=10,			# g parameter, grid size
   Cx		=0,			# choice of x component to display
   Cy		=0,			# choice of y component to display
-  DName		="iris",		# data name
-  fileIn	=""			# a file path of data
+  dataFrame	="iris"			# data name
  ) {
 DatMat = x;
-ret <- new("findModelCluster")
+ret <- new("findSvcModel")
 
 ret@Cx		= Cx;
 ret@Cy		= Cy;
 ret@Nu		= Nu;
-ret@DName	= DName;
-ret@fileIn	= fileIn;
+ret@dataFrame	= dataFrame;
 
 # Constants
 MaxIter = 20 ;		# Max number of loops
@@ -416,7 +433,7 @@ AroundNullVA		= 0.000005;
 ret@AroundNullVA	= AroundNullVA;
 
 # Data Structure of Criterium
-WVectorsYA <- list(W="",Y="",A="")
+lagrangeCoeff <- list(W="",Y="",A="")
 
 #Data Matrice structure
 Matrice             <- list(Sparse="",Mat="",Var="",Att="");
@@ -499,7 +516,7 @@ NbClassInData = max( Matrice$Mat[,(NumberPCA+1)] );
 Alert("", "ok", "\n");
 
 Alert("", "kernel matrix...", "\t\t");
-if( KernChoice == 2) SymMat = 1;
+if( KernChoice == 2 || KernChoice == 3 ) SymMat = 1;
 
 MK            = kernelMatrix.compute(pp, SymMat, q, ncol, nlin, KernChoice);
 MatriceKernel = MK@matrixKernel;
@@ -512,12 +529,12 @@ Alert("", "ok", "\n");
 Alert("", "lagrange coefficients...", "\t");
 #assign("MaxValA", 1/(get("nu", env=SvcEnv, inherits = FALSE)*nrow(Matrice$Mat)), env=SvcEnv, inherits = FALSE ) ; 
 
-MaxValA		=  1 / ( Nu * nrow(ret@Matrice$Mat) ); # MaxVal A[i]  valeur quasi optimale pour 2*1/N 
+MaxValA			=  1 / ( Nu * nrow(ret@Matrice$Mat) ); # MaxVal A[i]  valeur quasi optimale pour 2*1/N 
 
-Model		= ModelSV.compute(MetOpt, MatriceKernel, MatriceK, Nu, nlin, MaxIter, MaxValA, AroundNull,AroundNullVA);
-ret@WVectorsYA	= Model@VectorWA;
-RadiusC		= Model@RadiusC;
-r		= Model@SmallR;
+Model			= ModelSV.compute(MetOpt, MatriceKernel, MatriceK, Nu, nlin, MaxIter, MaxValA, AroundNull,AroundNullVA);
+ret@lagrangeCoeff	= Model@lagrangeCoeff;
+RadiusC			= Model@RadiusC;
+r			= Model@SmallR;
 
 Alert("", "ok", "\n");
 cat("\t\t\t", "radiusC ", RadiusC, "\t", "smallr ", r, "\n");					
@@ -532,7 +549,7 @@ invisible(gc());				# freeing memory
 
 return( ret );
 } 
-setMethod("findModelCluster",signature(  x="matrix" ), findModelCluster.Eval );
+setMethod("findSvcModel",signature(  x="matrix" ), findSvcModel.Eval );
 
 ########################################################################
 # Testing function for parameters values
@@ -540,21 +557,21 @@ setMethod("findModelCluster",signature(  x="matrix" ), findModelCluster.Eval );
 ########################################################################
 
 # Usage:
-#   findModelCluster.IsError(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, DName="iris", fileIn="D:\\R\\library\\svcR\\")
+#   findSvcModel.IsError(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, dataFrame="iris", fileIn="D:\\R\\library\\svcR\\")
 #
 
-findModelCluster.IsError <- function (
+findSvcModel.IsError <- function (
   x=1,				# method stoch (1) or quadprog (2)
-  MetLab=1,				# method grid  (1) or mst      (2) or knn (3)
+  MetLab=1,			# method grid  (1) or mst      (2) or knn (3)
   KernChoice=1,			# kernel choice 0,1 or 2
   Nu=1,			     	# nu parameter
-  q=1,					# q parameter
-  K=1,					# k parameter, k nearest neigbours for grid
-  G=1,					# g parameter, grid size
-  Cx=1, 				# choice of x component to display
-  Cy=1, 				# choice of y component to display
-  DName=NULL,				# data name
-  fileIn=NULL				# a file path of data
+  q=1,				# q parameter
+  K=1,				# k parameter, k nearest neigbours for grid
+  G=1,				# g parameter, grid size
+  Cx=1, 			# choice of x component to display
+  Cy=1, 			# choice of y component to display
+  dataFrame=NULL,		# data name
+  fileIn=NULL			# a file path of data
  ) {
 MetOpt=x;
 
@@ -566,8 +583,8 @@ if( MetLab > 3 || MetLab < 1 ) {
 	print( " parameter MetLab between 1 and 3 - try again ");
 	return (1);
 } #endif
-if( KernChoice > 2 || KernChoice < 0 ) {
-	print( " parameter KernChoice between 0 and 2 - try again ");
+if( KernChoice > 3 || KernChoice < 0 ) {
+	print( " parameter KernChoice between 0 and 3 - try again ");
 	return (1);
 } #endif
 if( Nu > 1000 || Nu < 0 ) {
@@ -594,10 +611,14 @@ if( Cy > 100 || Cy < 0 ) {
 	print( " parameter Cy between 0 and 100 - try again ");
 	return (1);
 } #endif
+if( typeof(dataFrame) != "list" ) {
+	print( " Data object is not a frame (i.e. a list) - try again ");
+	return (1);
+} #endif
 
 return (0);
 }
-setMethod("findModelCluster",signature(x="numeric"), findModelCluster.IsError);
+setMethod("findSvcModel",signature(x="numeric"), findSvcModel.IsError);
 
 
 ########################################################################
@@ -606,14 +627,37 @@ setMethod("findModelCluster",signature(x="numeric"), findModelCluster.IsError);
 ########################################################################
 
 # Usage:
-#   findModelCluster.chargeMatrix(DName="iris", fileIn="D:\\rbuild\\test\\")
+#   findSvcModel.chargeMatrix(iris)
 #
 
-findModelCluster.chargeMatrix <- function (
+findSvcModel.chargeMatrix <- function (
+  x
+    ) {
+Mat	<- list(Sparse="",Mat="",Var="",Att="");
+
+Mat$Var        = dimnames(x)[[1]]  ;
+Mat$Att        = dimnames(x)[[2]]  ;
+Mat$Mat        = data.matrix(x)  ;
+
+
+return (Mat);
+}
+setMethod("findSvcModel",signature(x="character"), findSvcModel.chargeMatrix);
+
+########################################################################
+# Load Data Matrix From HardDisk
+#
+########################################################################
+
+# Usage:
+#   findSvcModel.chargeMatrixHDD("term", fileIn="D:\\rbuild\\test\\")
+#
+
+findSvcModel.chargeMatrixHDD <- function (
   x,
-  MetOpt=1,				# method stoch (1) or quadprog (2)
-  MetLab=1,				# method grid  (1) or mst      (2) or knn (3)
-  KernChoice=1,			# kernel choice 0,1 or 2
+  MetOpt="optimStoch",		# method stoch (1) or quadprog (2)
+  MetLab="gridLabeling",	# method grid  (1) or mst      (2) or knn (3)
+  KernChoice="KernGaussian",	# kernel choice 0,1 or 2
   Nu=1,			     	# nu parameter
   q=1,					# q parameter
   K=1,					# k parameter, k nearest neigbours for grid
@@ -622,13 +666,13 @@ findModelCluster.chargeMatrix <- function (
   Cy=1, 				# choice of y component to display
   fileIn=""				# a file path of data
     ) {
-DName=x;
+dataFrame=x;
 Mat	<- list(Sparse="",Mat="",Var="",Att="");
 
 if( nchar(fileIn) < 2 ){
-	Mat$Sparse     = read.table( system.file("data", "iris_mat.txt", package = "svcR") , sep=" ");
-	Mat$Att        = read.table( system.file("data", "iris_att.txt", package = "svcR") , quote="", sep="\n" );
-	Mat$Var        = read.table( system.file("data", "iris_var.txt", package = "svcR") , quote="", sep="\n" );
+	Mat$Sparse     = read.table( system.file("data", "term_mat.txt", package = "svcR") , sep=" ");
+	Mat$Att        = read.table( system.file("data", "term_att.txt", package = "svcR") , quote="", sep="\n" );
+	Mat$Var        = read.table( system.file("data", "term_var.txt", package = "svcR") , quote="", sep="\n" );
 
 	NRows   = max( Mat$Sparse[[1]] ); # IndiceColMax; # we initialize the full matrix
 	NCols   = max( Mat$Sparse[[2]] ); # IndiceLineMax; 
@@ -643,7 +687,7 @@ if( nchar(fileIn) < 2 ){
 
 } #endif
 else { 
-	NomFile  = paste(fileIn, DName, "_mat", ".txt", sep=""); #"D:\\R\\library\\svcR\\data\\iris_mat.txt";
+	NomFile  = paste(fileIn, x, "_mat", ".txt", sep=""); #"D:\\R\\library\\svcR\\data\\iris_mat.txt";
 	List_max = .C( "SizeMat_C",
 		as.character(NomFile),
 		ListMax = numeric(2) )$ListMax ; 
@@ -657,8 +701,8 @@ else {
                 as.integer(MaxCol),
                 iRetVec = numeric(MaxLin*MaxCol))$iRetVec
 
-	Mat$Att	= read.table( paste(fileIn, DName, "_att", ".txt", sep=""), quote="", sep="\n" );
-	Mat$Var	= read.table( paste(fileIn, DName, "_var", ".txt", sep=""), quote="", sep="\n" );
+	Mat$Att	= read.table( paste(fileIn, dataFrame, "_att", ".txt", sep=""), quote="", sep="\n" );
+	Mat$Var	= read.table( paste(fileIn, dataFrame, "_var", ".txt", sep=""), quote="", sep="\n" );
 
 	Mat$Mat	= matrix(data = 0, nrow = MaxLin, ncol = MaxCol, byrow = FALSE, dimnames = NULL)
 
@@ -669,9 +713,13 @@ else {
 
 #write( "Matrice$Mat \n", file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(Mat$Mat), sep="\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
-return (Mat);
+zz = data.frame( Mat$Mat );
+dimnames(zz)[[1]] <-   unlist(Mat$Var)  ;
+#dimnames(zz)[[2]] <-   unlist( c(Mat$Att, "class") ) ;
+
+return (zz);
 }
-setMethod("findModelCluster",signature(x="character"), findModelCluster.chargeMatrix);
+setMethod("findSvcModel",signature(x="character"), findSvcModel.chargeMatrixHDD);
 
 
 ########################################################################

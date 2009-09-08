@@ -1,19 +1,19 @@
-\name{findModelCluster-class}
+\name{findSvcModel-class}
 \docType{class}
-\alias{findModelCluster-class}
+\alias{findSvcModel-class}
 
-\title{ Class "findModelCluster" }
+\title{ Class "findSvcModel" }
 
 \description{ reading data, computation of the svc model and cluster labelling }
 
-\section{Objects from the Class}{Objects can be created by calls of the form \code{new("findModelCluster", ...)}.
-  or by calling the  \code{findModelCluster} function.}
+\section{Objects from the Class}{Objects can be created by calls of the form \code{new("findSvcModel", ...)}.
+  or by calling the  \code{findSvcModel} function.}
 
 \section{Slots}{
   \describe{
 
-    \item{\code{WVectorsYA}:}{Object of class \code{"list"} contains
-      the lagrange coefficients : WVectorsYA\$A }
+    \item{\code{lagrangeCoeff}:}{Object of class \code{"list"} contains
+      the lagrange coefficients : lagrangeCoeff\$A }
 
     \item{\code{Matrice}:}{Object of class \code{"list"} contains
       variables names Matrice\$var, attributes names Matrice\$Att and data Matrice\$Mat}
@@ -30,7 +30,7 @@
     \item{\code{MisClass}:}{Object of class \code{"vector"} contains
       missclassfied points}
 
-    \item{\code{DName}:}{Object of class \code{"character"} contains
+    \item{\code{dataFrame}:}{Object of class \code{"list"} contains
       the prefix name of data for files decoding}
 
     \item{\code{fileIn}:}{Object of class \code{"character"} contains
@@ -68,26 +68,26 @@
 
 \author{ Nicolas Turenne - INRA France \email{nicolas.turenne@jouy.inra.fr} }
 
-\seealso{ \code{\link{findModelCluster}} }
+\seealso{ \code{\link{findSvcModel}} }
 
 \examples{
 
 ## exemple with iris data
 
-MetOpt  = 1;    # optimisation method with randomization
-MetLab  = 1;    # grid labelling
-KChoice = 1;    # 0: eucli 1: radial 2: radial+dist 
-Nu      = 1.0; 
-q       = 2000;   # lot of clusters
-K       = 1;    # only 1  nearest neighbour for clustering
-Cx = Cy = 0; # we use principal component analysis factors
-G       = 13; # size of the grid for cluster labelling
-DName   = "iris";
-fileIn  = ""; # fileIn migth be such as "D:/R/library/svc/", if NULL it will work on iris data
+MetOpt     = "optimStoch";      #  optimisation method with randomization
+MetLab     = "gridLabeling";    #  grid labelling
+KernChoice = "KernGaussian";    #  radial kernel
+Nu         = 1.0; 
+q          = 2000;   # lot of clusters
+K          = 1;      # only 1  nearest neighbour for clustering
+Cx = Cy    = 0;      # we use principal component analysis factors
+G          = 20;     # size of the grid for cluster labelling
+fileIn     = "";     # fileIn migth be such as "D:/R/library/svc/", if NULL it will work on term data
 
-fmc = findModelCluster( as.integer(MetOpt), MetLab, KChoice, Nu, q, K, G, Cx, Cy, DName, fileIn); 
+data(iris)
+fmc = findSvcModel( iris, MetOpt, MetLab, KernChoice, Nu, q, K, G, Cx, Cy); 
 
-fmc@NumPoints; # values of the grid
+NP = getNumPoints(fmc); # values of the grid
 
 }
 

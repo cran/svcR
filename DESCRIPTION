@@ -1,6 +1,6 @@
 Package: svcR
-Version: 1.4.2
-Date: 2009-04-20
+Version: 1.6.1
+Date: 2009-09-08
 Title: svcR package
 Author: Nicolas Turenne <nicolas.turenne@jouy.inra.fr>.
 Maintainer: Nicolas Turenne <nicolas.turenne@jouy.inra.fr>
@@ -11,6 +11,6 @@ Description: svcR implements a support vector machine technique for
         data require 3 files: matrix, attributes, variables.
 LazyLoad: Yes
 License: GPL (>= 2)
-Packaged: Wed May 6 19:59:28 2009; Nicolas
+Packaged: Wed Sep 9 22:54:19 2009; Nicolas
 Repository: CRAN
-Date/Publication: 2009-05-06 18:34:23
+Date/Publication: 2009-09-10 13:02:27

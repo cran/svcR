@@ -272,6 +272,8 @@ else if( Choice == 1)
 		Res = KernelGaussian_C(q, Vec1, Vec2, Ncols);
 else if( Choice == 2)
 		Res = KernelGaussianDist_C(q, Vec1);
+else if( Choice == 3)
+		Res = *Vec1;
 
 return (Res);
 }

@@ -33,7 +33,7 @@ Computes kernel matrix, lagrange coefficients, support vectors and radius
 
 \arguments{
 
-  \item{x}{ method of lagrange computation 1 or 2  }
+  \item{x}{ method of lagrange computation 1 (stochastic) or 2 (quadratic)  }
 
   \item{MatriceKernel}{ kernel matrix with vector format }
   
@@ -55,18 +55,19 @@ Computes kernel matrix, lagrange coefficients, support vectors and radius
 
 }
 
-%\details{}
+%\details{ ModelSV.compute is a function used internally in findSvcModel function }
 
 \value{
   An S4 object of class \code{ModelSV} 
   The object is the svc model along with 
   the slots :
-  \item{VectorWA}{lagrange coefficients : VectorsYA\$A}
+  \item{lagrangeCoeff}{lagrange coefficients : VectorsYA\$A}
   \item{RadiusC}{radius of the hypersphere containing data}
   \item{SmallR}{residu of radius}
   OptimQuadProgWcluster return a list containing lagrange coefficients.
 
-  slots can be accessed by \code{object@slot}
+  slots can not be accessed.
+
 }
 
 \references{ N.Turenne , Some Heuristics to speed-up Support Vector Clustering , technical report 2006, INRA, France 
@@ -80,9 +81,10 @@ Computes kernel matrix, lagrange coefficients, support vectors and radius
 ## exemple with iris data
 
 # model computing 
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
-fmc@WVectorsYA$A; # lagrange coefficients
+L = getlagrangeCoeff(fmc); # catch lagrange coefficients
+L$A;                       # lagrange coefficients computed in the model
 
 }
 

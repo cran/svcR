@@ -1,11 +1,11 @@
-\name{iris_mat}
+\name{term_mat}
 \docType{data}
-\alias{iris_mat}
+\alias{term_mat}
 \title{data matrix}
 \description{ 
      this data ...
 }
-\usage{data(iris_mat)}
+\usage{data(term_mat)}
 \format{ a matrix of data }
 \source{ a matrix of data }
 \references{ a matrix of data }

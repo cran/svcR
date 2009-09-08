@@ -9,14 +9,14 @@
 ########################################################################
 
 # Usage:
-#   DisplayData(Mat=matrice,MatK=matriceK,WYA=wya,Cx=1,Cy=2,ListMis=MisClas)
+#   plot(fmc)
 #
 
-setMethod("plot", signature(x = "findModelCluster", y = "missing"),
+setMethod("plot", signature(x = "findSvcModel", y = "missing"),
 function(x, data = NULL, Multi = FALSE , slice = list(), ...) {
 
 Mat		= x@Matrice$Mat		# data matrix
-WYA		= x@WVectorsYA		# vectors classs/ coefficients
+WYA		= x@lagrangeCoeff	# vectors classs/ coefficients
 Cx		= x@Cx 			# choice of x component to display
 Cy		= x@Cy	 		# choice of y component to display
 ListMis		= x@MisClass		# list of misclassified data
@@ -72,13 +72,13 @@ Grid(fmc=x, ListSV=SV);
 ########################################################################
 
 # Usage:
-#   Grid(Mat=matrice, MatK= matriceK, WYA=va, ListSV=SV, Cx=1,Cy=2);
+#   Grid( fmc=ret, ListSV=SV );
 #
 
 setGeneric("Grid", function(fmc, ListSV) standardGeneric("Grid"))
 
-setMethod("Grid", signature(fmc = "findModelCluster"),
-function(fmc = NULL, ListSV = NULL) {
+setMethod("Grid", signature(fmc = "findSvcModel"),
+function(fmc=new("findSvcModel"), ListSV = NULL) {
 
 ListMis		= fmc@MisClass		# list of misclassified data
 Mat		= fmc@Matrice$Mat	# data matrix
@@ -167,32 +167,31 @@ points(ListX, ListY, pch = 24, col = "green", bg = "green", cex = 1);
 ########################################################################
 
 # Usage:
-#   ExportClusters(fmc = findMC);
+#   ExportClusters(fmc = findMC, NameFile="nf" );
 #
 
-setGeneric("ExportClusters", function(fmc) standardGeneric("ExportClusters"))
+setGeneric("ExportClusters", function(fmc,NameFile) standardGeneric("ExportClusters"))
 
-setMethod("ExportClusters", signature(fmc = "findModelCluster"),
-function(fmc = NULL) {
+setMethod("ExportClusters", signature(fmc = "findSvcModel"),
+function(fmc=new("findSvcModel"), NameFile="nf") {
 
 MatriceVar	= fmc@Matrice$Var	# variables data matrix name 
-DName		= fmc@DName		# prefix name of data
+dataFrame	= NameFile		# prefix name of data
 pathOut		= tempdir()		# output directory
 CPoints		= fmc@ClassPoints
-Ngrid		= fmc@SizeGrid		# size grid
 
 #opening output stream
-path = file.path(pathOut, paste(DName, "_clu.txt", sep="") );
+path = file.path(pathOut, paste(dataFrame, "_clu.txt", sep="") );
 CluOutput <- file( path , "w");
 
 #sorting by cluster index
 SortedClassPoints = sort(CPoints, method = "sh", index.return = TRUE);
 
 #output points class
-for(i in 1:nrow(MatriceVar) ){
+for(i in 1:length(MatriceVar) ){ 
  if( i == 1 || SortedClassPoints$x[i] != SortedClassPoints$x[i-1] )
 	cat('\n', "cluster", '\t', SortedClassPoints$x[i], '\n', file=CluOutput);
- cat("item", '\t', as.character(MatriceVar[ SortedClassPoints$ix[i] , 1 ]), '\n', file=CluOutput);
+ cat("item", '\t', as.character(MatriceVar[ SortedClassPoints$ix[i] ]), '\n', file=CluOutput);
 
 } #finfori
 
@@ -213,8 +212,8 @@ close(CluOutput)
 
 setGeneric("Summary", function(fmc) standardGeneric("Summary"))
 
-setMethod("Summary", signature(fmc = "findModelCluster"),
-function(fmc = NULL) {
+setMethod("Summary", signature(fmc = "findSvcModel"),
+function(fmc=new("findSvcModel")) {
 
 Matrice		= fmc@Data		# original data matrix
 CPoints		= fmc@ClassPoints
@@ -237,11 +236,102 @@ for(i in 0:NbClusters ){
 cat("average attributes per cluster", '\n');
 print( c(t(fmc@Matrice$Att)) );
 for(i in 1:NbClusters ){
-	MatriceCluster = fmc@Data[ fmc@ClassPoints[ fmc@ClassPoints[] ==i ], ] ;
-	cat( "  ", mean( as.data.frame(MatriceCluster[,1:NbAtt]) ) , '\n');
+	MatriceCluster = fmc@Data[  fmc@ClassPoints[] ==i  , ] ;
+	if( !is.null(nrow(MatriceCluster)) ) { cat( "cluster ", i, "\t", mean( as.data.frame(MatriceCluster[,1:NbAtt]) ) , '\n\n'); }
+	else                           { cat( "cluster ", i, "\t", MatriceCluster  , '\n\n'); }
 } #endfor
 
 })
+
+########################################################################
+# Accessing to a cluster by its id 
+#
+########################################################################
+
+# Usage:
+#   GetClusterID(fmc=ret, Id=1);
+#
+
+setGeneric("GetClusterID", function(fmc, Id=1) standardGeneric("GetClusterID"))
+
+setMethod("GetClusterID", signature(fmc = "findSvcModel"),
+function(fmc=new("findSvcModel"), Id=1) {
+
+if( Id < 0 || Id > max(fmc@ClassPoints) || (Id %% 1) != 0 ){
+	print("Id is not valid"); 
+	return (1);
+} #endif
+
+MatriceVar	= fmc@Matrice$Var	# variables data matrix name 
+
+#output points class
+MatriceCluster = MatriceVar[  fmc@ClassPoints[] == Id   ] ;
+cat( "cluster ", Id, '\n'); 
+cat(  MatriceCluster , sep='\n'); 
+cat(  '\n'); 
+ 
+})
+
+########################################################################
+# Show all clusters
+#
+########################################################################
+
+# Usage:
+#   ShowClusters(fmc=ret);
+#
+
+setGeneric("ShowClusters", function(fmc) standardGeneric("ShowClusters"))
+
+setMethod("ShowClusters", signature(fmc = "findSvcModel"),
+function(fmc=new("findSvcModel")) {
+
+MatriceVar	= fmc@Matrice$Var	# variables data matrix name 
+CPoints		= fmc@ClassPoints
+
+#sorting by cluster index
+SortedClassPoints = sort(CPoints, method = "sh", index.return = TRUE);
+
+#output points class
+for(i in 1:length(MatriceVar) ){ 
+cat("i", i, "\n");
+ if( i == 1 || SortedClassPoints$x[i] != SortedClassPoints$x[i-1] )
+	cat('\n', "cluster", '\t', SortedClassPoints$x[i], '\n' );
+ cat("item", '\t', as.character(MatriceVar[ SortedClassPoints$ix[i] ]), '\n' );
+
+} #finfori
+
+
+})
+
+########################################################################
+# Get the clusters to which an items belongs 
+#
+########################################################################
+
+# Usage:
+#   GetClustersTerm(fmc=ret, term="home");
+#
+
+setGeneric("GetClustersTerm", function(fmc,term) standardGeneric("GetClustersTerm"))
+
+setMethod("GetClustersTerm", signature(fmc = "findSvcModel"),
+function(fmc=new("findSvcModel"), term="home") {
+
+CPoints		= fmc@ClassPoints
+ListVar		= fmc@Matrice$Var	# variables data matrix name 
+
+print(ListVar)
+IndiceVectorTerm <- grep(term, ListVar)  # indices
+print(IndiceVectorTerm)
+ListCluster = unique( CPoints[ IndiceVectorTerm ] )
+print(ListCluster)
+
+for(k in 1:length(ListCluster) ) GetClusterID(fmc, ListCluster[k] );
+
+})
+
+
 
 ########################################################################
 # message tracing 

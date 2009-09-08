@@ -24,19 +24,19 @@
 %\section{Methods}{
 %  \describe{
 %
-%    \item{Labelling.compute}{\code{signature(x="findModelCluster")}
+%    \item{Labelling.compute}{\code{signature(x="findSvcModel")}
 %					 : computes the cluster labbelling}
 %
-%    \item{AdjacencyPP}{\code{signature(x = "findModelCluster")}
+%    \item{AdjacencyPP}{\code{signature(x = "findSvcModel")}
 %					: computes a  pair adjacency}
 %
-%    \item{Adjacency}{\code{signature(x = "findModelCluster")}
+%    \item{Adjacency}{\code{signature(x = "findSvcModel")}
 %					: computes a matrix adjacency}
 %
-%    \item{MST_labelling}{\code{signature(x = "findModelCluster")}
+%    \item{MST_labelling}{\code{signature(x = "findSvcModel")}
 %					: computes a Minimum Spanning Tree Labelling}
 %
-%    \item{KNN_labelling}{\code{signature(x = "findModelCluster")}
+%    \item{KNN_labelling}{\code{signature(x = "findSvcModel")}
 %					: computes a K-Nearest-Neighbours Tree Labelling}
 %  }
 %}
@@ -49,9 +49,9 @@
 
 ## exemple with iris data
 
-fmc = findModelCluster.Test(); 
+fmc = findSvcModel.Test(); 
 
-fmc@NumPoints; # values of the grid
+getNumPoints(fmc); # values of the grid
 
 }
 

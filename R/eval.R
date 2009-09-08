@@ -44,7 +44,7 @@ invisible(gc());					# freeing memory
 
 return ( new("ClusterEval",  Precision= c(P) ) )
 }
-setMethod("ClusterEval",signature(x="findModelCluster"), ClusterEval.Pvalue)
+setMethod("ClusterEval",signature(x="findSvcModel"), ClusterEval.Pvalue)
 
 
 ########################################################################
@@ -171,7 +171,7 @@ for( IndMat in 1:10 ) {
 		MatriceMat = as.data.frame( c( MatAdjCoa$li , as.data.frame(MatriceMat[,ncol(MatriceMat)]) ) );
 	} #EndIf
 
-	x = findModelCluster.Eval( as.matrix(MatriceMat) );
+	x = findSvcModel.Eval( as.matrix(MatriceMat) );
 
 	NBClass		= max( x@ClassPoints );
 	NbClassInData	= max( x@Matrice$Mat[,ncol] );
@@ -227,7 +227,7 @@ print("time consuming per process"); print(GlobalTime/10);	# output time consumi
 return( new("ClusterEval",  Precision=ListP ) );
 
 }
-setMethod("ClusterEval",signature(x="findModelCluster"), ClusterEval.crossval)
+setMethod("ClusterEval",signature(x="findSvcModel"), ClusterEval.crossval)
 
 
 ########################################################################
@@ -276,7 +276,7 @@ Alert("", "ok", "\n");
 		MatriceMat = as.data.frame( c( MatAdjCoa$li , as.data.frame(MatriceMat[,ncol(MatriceMat)]) ) );
 	} #EndIf
 
-	x = findModelCluster.Eval( as.matrix(MatriceMat) );
+	x = findSvcModel.Eval( as.matrix(MatriceMat) );
 
 	NBClass		= max( x@ClassPoints );
 	NbClassInData	= max( x@Matrice$Mat[,ncol] );
@@ -323,7 +323,7 @@ print("time consuming per process"); print(GlobalTime/10);	# output time consumi
 return( new("ClusterEval",  Precision=c(P) ) );
 
 }
-setMethod("ClusterEval",signature(x="findModelCluster"), ClusterEval.final)
+setMethod("ClusterEval",signature(x="findSvcModel"), ClusterEval.final)
 
 ########################################################################
 # Test of scalability . running from 1% of data to 100%
@@ -371,7 +371,7 @@ for(NLine in 2:nlin ) {
 		MatriceMat = as.data.frame( c( MatAdjCoa$li , as.data.frame(MatriceMat[,ncol(MatriceMat)]) ) );
 	} #EndIf
 
-	x_loop = findModelCluster.Eval( as.matrix(MatriceMat) );
+	x_loop = findSvcModel.Eval( as.matrix(MatriceMat) );
 
 	P = ClusterEval.Pvalue( x_loop );
 
@@ -393,7 +393,7 @@ print("time consuming per process"); print(GlobalTime/10);	# output time consumi
 return( new("ClusterEval",  Precision=ListP ) );
 
 }
-setMethod("ClusterEval",signature(x="findModelCluster"), ClusterEval.scalable)
+setMethod("ClusterEval",signature(x="findSvcModel"), ClusterEval.scalable)
 
 ########################################################################
 # Test clusterability 
@@ -429,7 +429,7 @@ for(IndNu in 1:Lnu ) {
 	q = ListQ[IndQ];
 	Alert("\n", paste("test number...",((IndNu-1)*Lq + IndQ) , "\t", "Nu ", Nu, "q ", q, "\n\n"));
 
-	x_loop = findModelCluster( as.integer(1), MetLab=1, KernChoice=1, Nu, q, K=1, G=5, Cx=0, Cy=0, DName="iris", fileIn="D:\\rbuild\\test\\")
+	x_loop = findSvcModel( iris, MetOpt="optimStoch", MetLab="gridLabeling", KernChoice="KernGaussian", Nu, q, K=1, G=5, Cx=0, Cy=0, fileIn="D:\\rbuild\\test\\")
 
 	P = ClusterEval.Pvalue( x_loop );
 

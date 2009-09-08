@@ -1,11 +1,11 @@
-\name{iris_var}
+\name{term_var}
 \docType{data}
-\alias{iris_var}
+\alias{term_var}
 \title{data matrix}
 \description{ 
      this data ...
 }
-\usage{data(iris_var)}
+\usage{data(term_var)}
 \format{ a matrix of data }
 \source{ a matrix of data }
 \references{ a matrix of data }

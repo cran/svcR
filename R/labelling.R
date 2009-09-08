@@ -48,7 +48,7 @@ if( MetLab == 1 ) {
 			as.double(RadiusC), 
 			as.double(r), 
 			as.integer(KernChoice), 
-			as.vector(x@WVectorsYA$A) , 
+			as.vector(x@lagrangeCoeff$A) , 
 			iNumPoints = numeric( G * G * 7 ) )$iNumPoints;
 
 	NbCluster =   .C("NbCluster_C",     
@@ -93,7 +93,7 @@ else if( MetLab == 3 ){
 
     return( new( "Labelling", ClassPoints = ClassPoints, NumPoints = NumPoints ) )
 }
-setMethod("Labelling",signature(x="findModelCluster"), Labelling.compute)
+setMethod("Labelling",signature(x="findSvcModel"), Labelling.compute)
 
 
 ########################################################################
@@ -107,7 +107,7 @@ setMethod("Labelling",signature(x="findModelCluster"), Labelling.compute)
 
 setGeneric("AdjacencyPP", function(x, MatriceKernel, Vec1, Vec2) standardGeneric("AdjacencyPP"))
 
-setMethod("AdjacencyPP", signature(x = "findModelCluster"),
+setMethod("AdjacencyPP", signature(x = "findSvcModel"),
 function(x,
     MatriceKernel=matrix(),            # matrix of kernel product
     Vec1=vector() ,                   # first vector
@@ -115,7 +115,7 @@ function(x,
     ) {
 
 Mat  = x@Data ;
-WYA  = x@WVectorsYA$A ;                      # Lagrange coefficients
+WYA  = x@lagrangeCoeff$A ;                      # Lagrange coefficients
 
 SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 adj_flag = 1; # unless a point on the path exits the sphere - pair is adjacent
@@ -149,13 +149,13 @@ return ( adj_flag );
 
 setGeneric("Adjacency", function(x, MatriceKernel) standardGeneric("Adjacency"))
 
-setMethod("Adjacency", signature(x = "findModelCluster"),
+setMethod("Adjacency", signature(x = "findSvcModel"),
 function(x,
     MatriceKernel=matrix()            # matrix of kernel product
     ) {
 
 Mat  = x@Data ;
-WYA  = x@WVectorsYA$A ;                      # Lagrange coefficients
+WYA  = x@lagrangeCoeff$A ;                      # Lagrange coefficients
 
 N          = nrow(MatriceKernel) * 0.1 ;
 AdjacencyM = matrix(data = 0, nrow = N, ncol = N); #initialize adjacency matrix
@@ -211,13 +211,13 @@ return ( AdjacencyM );
 
 setGeneric("MST_labelling", function(x, MatriceKernel) standardGeneric("MST_labelling"))
 
-setMethod("MST_labelling", signature(x = "findModelCluster"),
+setMethod("MST_labelling", signature(x = "findSvcModel"),
 function(x,
     MatriceKernel=matrix()            # matrix of kernel product
     ) {
 
 Mat	= x@Data ;		# data matrix
-WYA	= x@WVectorsYA$A ;    # Lagrange coefficients
+WYA	= x@lagrangeCoeff$A ;    # Lagrange coefficients
 Cx	= x@Cx;   		# choice of x component to display
 Cy	= x@Cy; 		# choice of y component to display
 
@@ -290,13 +290,13 @@ return ( ListItemCluster );
 
 setGeneric("KNN_labelling", function(x, MatriceKernel) standardGeneric("KNN_labelling"))
 
-setMethod("KNN_labelling", signature(x = "findModelCluster"),
+setMethod("KNN_labelling", signature(x = "findSvcModel"),
 function(x,
     MatriceKernel=matrix()            # matrix of kernel product
     ) {
 
 Mat	= x@Data ;		# data matrix
-WYA	= x@WVectorsYA$A ;    # Lagrange coefficients
+WYA	= x@lagrangeCoeff$A ;    # Lagrange coefficients
 Cx	= x@Cx;   		# choice of x component to display
 Cy	= x@Cy; 		# choice of y component to display
 
