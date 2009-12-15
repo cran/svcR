@@ -2,10 +2,10 @@
 \docType{methods}
 \alias{plot}
 \alias{ExportClusters}
-\alias{Summary}
+\alias{findSvcModel.summary}
 \alias{plot,findSvcModel-method}
 \alias{ExportClusters,findSvcModel-method}
-\alias{Summary,findSvcModel-method}
+\alias{findSvcModel.summary,findSvcModel-method}
 \alias{GetClustersTerm}
 \alias{ShowClusters}
 \alias{GetClusterID}
@@ -16,7 +16,7 @@
 \title{ Display function of an svc object  }
 
 \description{
-Plot permit to display a grid and cluster, ExportClusters can get cluster in text file. Summary gives
+Plot permit to display a grid and cluster, ExportClusters can get cluster in text file. findSvcModel.summary gives
 statistics about clusters.
 }
 
@@ -25,7 +25,7 @@ statistics about clusters.
 
 \S4method{ExportClusters}{findSvcModel}(fmc=new("findSvcModel"), NameFile="nf")
 
-\S4method{Summary}{findSvcModel}(fmc=new("findSvcModel"))
+\S4method{findSvcModel.summary}{findSvcModel}(x=new("findSvcModel"))
 
 \S4method{GetClustersTerm}{findSvcModel}(fmc=new("findSvcModel"), term="home")
 
@@ -62,7 +62,7 @@ plot(fmc);
 ExportClusters(fmc, "Exportfilename");
 
 #give information about basics statistics of clusters (size, attributes mean)
-Summary(fmc);
+findSvcModel.summary(fmc);
 
 #show all clusters
 ShowClusters(fmc);

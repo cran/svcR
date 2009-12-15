@@ -7,14 +7,15 @@
 ## History of this library 
 ##  svcR # 2005-2009
 ##   written  by Nicolas Turenne  
-##                 # v1.6     beta  release      # Sep-10-09   
-##                 # v1.5     beta  release      # Apr-20-09   
-##                 # v1.4     beta  release      # May-20-08   
-##                 # v1.3     beta  release      # Jun-20-07   
-##                 # v1.2     beta  release      # Apr-24-07   
-##                 # v1.0     beta  release      # Jun-26-06   
-##                 # v0.9     alpha release      # Sep-26-05   
-##                 # v0.0     alpha release      # Apr-27-05   
+##                 # v1.62     beta  release      # Dec-15-09   
+##                 # v1.6      beta  release      # Sep-10-09   
+##                 # v1.5      beta  release      # Apr-20-09   
+##                 # v1.4      beta  release      # May-20-08   
+##                 # v1.3      beta  release      # Jun-20-07   
+##                 # v1.2      beta  release      # Apr-24-07   
+##                 # v1.0      beta  release      # Jun-26-06   
+##                 # v0.9      alpha release      # Sep-26-05   
+##                 # v0.0      alpha release      # Apr-27-05   
 ## source("D:\\rbuild\\svcR\\R\\svcR2.txt")
 ## load("d:\\r\\library\\svc\\svc.RData")
 ## save.image("d:\\r\\library\\svc\\svc.RData")
@@ -130,7 +131,7 @@ fileName   = 0;
 FileOutput = 0;						  # output connection
 
 Precision  = 0;
-Error = findSvcModel.IsError(mOpt, mLab, kChoice, Nu, q, K, G, Cx, Cy, dataFrame, fileIn);
+Error = findSvcModel.IsError(mOpt, mLab, kChoice, Nu, q, K, G, Cx, Cy, dataFrame);
 
 ##parameters init
 TimeNow    <- proc.time();			# catch time reference
@@ -138,7 +139,7 @@ TimeNow    <- proc.time();			# catch time reference
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
 Alert("", "loading matrix...", "\t\t");
-Matrice    <- findSvcModel.chargeMatrix( dataFrame );		# data matrix structure loading
+Matrice    <- findSvcModel.loadMat( dataFrame );		# data matrix structure loading
 Alert("", "ok", "\n");
 
 ret@Data = Matrice$Mat;
@@ -171,7 +172,7 @@ if( nlin < 2 ) {
 pp = c();
 for(i in 1:nlin ){	# we fill the full matrix
 	pp = c(pp, as.vector(Matrice$Mat[i,]) );
-}#finfori
+}#endfori
 
 MinMaxXY  = .C("MinMaxMat_C",
                 as.vector(pp),
@@ -302,7 +303,7 @@ fileName = file.path(tempdir(), "sortie.txt");
 if( Cx != "" && Cy != "" ) { cx <- Cx ; cy <- Cy; }
 
 Alert("", "loading matrix...", "\t\t");
-Matrice    <- findSvcModel.chargeMatrix( dataFrame );		# data matrix structure loading
+Matrice    <- findSvcModel.loadMat( dataFrame );		# data matrix structure loading
 Alert("", "ok", "\n");
 
 ret@Data =  Matrice$Mat ;
@@ -335,7 +336,7 @@ if( nlin < 2 ) {
 pp = c();
 for(i in 1:nlin ){	# we fill the full matrix
 	pp = c(pp, as.vector(Matrice$Mat[i,]) );
-}#finfori
+}#endfori
 
 MinMaxXY  = .C("MinMaxMat_C",
                 as.vector(pp),
@@ -493,7 +494,7 @@ if( nlin < 2 ) {
 pp = c();
 for(i in 1:nlin ){	# we fill the full matrix
 	pp = c(pp, as.vector(Matrice$Mat[i,]) );
-}#finfori
+}#endfori
 
 MinMaxXY  = .C("MinMaxMat_C",
                 as.vector(pp),
@@ -557,7 +558,7 @@ setMethod("findSvcModel",signature(  x="matrix" ), findSvcModel.Eval );
 ########################################################################
 
 # Usage:
-#   findSvcModel.IsError(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, dataFrame="iris", fileIn="D:\\R\\library\\svcR\\")
+#   findSvcModel.IsError(MetOpt=1, MetLab=1, KernChoice=1, Nu=0.5, q=40, K=1, G=15, Cx=1, Cy=2, dataFrame="iris")
 #
 
 findSvcModel.IsError <- function (
@@ -570,8 +571,7 @@ findSvcModel.IsError <- function (
   G=1,				# g parameter, grid size
   Cx=1, 			# choice of x component to display
   Cy=1, 			# choice of y component to display
-  dataFrame=NULL,		# data name
-  fileIn=NULL			# a file path of data
+  dataFrame=NULL		# data name
  ) {
 MetOpt=x;
 
@@ -627,10 +627,10 @@ setMethod("findSvcModel",signature(x="numeric"), findSvcModel.IsError);
 ########################################################################
 
 # Usage:
-#   findSvcModel.chargeMatrix(iris)
+#   findSvcModel.loadMat(iris)
 #
 
-findSvcModel.chargeMatrix <- function (
+findSvcModel.loadMat <- function (
   x
     ) {
 Mat	<- list(Sparse="",Mat="",Var="",Att="");
@@ -642,7 +642,13 @@ Mat$Mat        = data.matrix(x)  ;
 
 return (Mat);
 }
-setMethod("findSvcModel",signature(x="character"), findSvcModel.chargeMatrix);
+setMethod("findSvcModel",signature(x="character"), findSvcModel.loadMat);
+
+########################################################################
+# chargeMatrix 
+# THIS FUNCTION IS OBSOLETE AND HAS BEEN REPLACED BY findSvcModel / signature(x="list")
+########################################################################
+
 
 ########################################################################
 # Load Data Matrix From HardDisk
@@ -650,20 +656,11 @@ setMethod("findSvcModel",signature(x="character"), findSvcModel.chargeMatrix);
 ########################################################################
 
 # Usage:
-#   findSvcModel.chargeMatrixHDD("term", fileIn="D:\\rbuild\\test\\")
+#   findSvcModel.loadMatD("term", fileIn="D:\\rbuild\\test\\")
 #
 
-findSvcModel.chargeMatrixHDD <- function (
+findSvcModel.loadMatD <- function (
   x,
-  MetOpt="optimStoch",		# method stoch (1) or quadprog (2)
-  MetLab="gridLabeling",	# method grid  (1) or mst      (2) or knn (3)
-  KernChoice="KernGaussian",	# kernel choice 0,1 or 2
-  Nu=1,			     	# nu parameter
-  q=1,					# q parameter
-  K=1,					# k parameter, k nearest neigbours for grid
-  G=1,					# g parameter, grid size
-  Cx=1, 				# choice of x component to display
-  Cy=1, 				# choice of y component to display
   fileIn=""				# a file path of data
     ) {
 dataFrame=x;
@@ -683,7 +680,7 @@ if( nchar(fileIn) < 2 ){
 		IndiceCol  = Mat$Sparse[[2]][i];
 		Val        = as.numeric( Mat$Sparse[[3]][i] );
 		Mat$Mat[IndiceLine,IndiceCol] = Val;
-	}#finfori
+	}#endfori
 
 } #endif
 else { 
@@ -708,7 +705,7 @@ else {
 
 	for(i in 1:MaxLin ){	# we fill the full matrix
 		Mat$Mat[i,] = ReadMat[(i*MaxCol-MaxCol+1):(i*MaxCol)];
-	}#finfori
+	}#endfori
 } # endif 
 
 #write( "Matrice$Mat \n", file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(Mat$Mat), sep="\t", file=get("FileOutput", env=SvcEnv, inherits = FALSE));
@@ -719,7 +716,6 @@ dimnames(zz)[[1]] <-   unlist(Mat$Var)  ;
 
 return (zz);
 }
-setMethod("findSvcModel",signature(x="character"), findSvcModel.chargeMatrixHDD);
 
 
 ########################################################################

@@ -3,8 +3,7 @@
 \alias{findSvcModel}
 \alias{findSvcModel-methods}
 \alias{findSvcModel,integer-method}
-\alias{findSvcModel.chargeMatrix}
-\alias{findSvcModel.chargeMatrixHDD}
+\alias{findSvcModel.loadMat}
 \alias{findSvcModel.Eval}
 \alias{findSvcModel.Test}
 \alias{findSvcModel.IsError}
@@ -13,8 +12,7 @@
 \alias{findSvcModel,list-method}
 \alias{findSvcModel,numeric-method}
 \alias{findSvcModel,missing-method}
-\alias{findSvcModel.chargeMatrixHDD,character-method}
-\alias{findSvcModel.chargeMatrix,list-method}
+\alias{findSvcModel.loadMat,list-method}
 \alias{findSvcModel.Eval,matrix-method}
 \alias{findSvcModel.IsError,numeric-method}
 \alias{findSvcModel.Test,missing-method}
@@ -41,9 +39,7 @@ to reconstruct the boundary shaped now in several clusters.
 \usage{
 \S4method{findSvcModel}{list}( x=iris, MetOpt="optimStoch", MetLab="gridLabeling", KernChoice="KernGaussian", Nu=0.8, q=20, K=1, G=10, Cx=1, Cy=2 )
 
-\S4method{findSvcModel.chargeMatrixHDD}{character}( x="term", fileIn="c:/files" )
-
-\S4method{findSvcModel.chargeMatrix}{list}( x=iris )
+\S4method{findSvcModel.loadMat}{list}( x=iris )
 
 \S4method{findSvcModel.Eval}{matrix}( x=matrix() )
 
@@ -81,9 +77,7 @@ to reconstruct the boundary shaped now in several clusters.
   \item{Cx}{ 1st data coordinate to plot for 2D cluster extraction }
  
   \item{Cy}{ 2nd data coordinate to plot for 2D cluster extraction }
-    
-  \item{fileIn}{ path where to find files as "D:\\R\\library\\svcR\\" }
- 
+     
   \item{object}{ a findSvcModel object }
 
 }
@@ -128,7 +122,6 @@ For the kernel parameter (KernelChoice) four choices are available: "KernLinear"
   \item{MinMaxXY}{min max values for first and second coordinates}
   \item{MisClass}{missclassfied points}
   \item{dataFrame}{prefix name of data for files decoding}
-  \item{fileIn}{data file path}
   \item{ClassPoints}{class of grid points}
   \item{Cx}{x column id of data matrix}
   \item{Cy}{y column id of data matrix}
@@ -161,19 +154,12 @@ q          = 2000;   # lot of clusters
 K          = 1;      # only 1  nearest neighbour for clustering
 Cx = Cy    = 0;      # we use principal component analysis factors
 G          = 20;     # size of the grid for cluster labelling
-fileIn     = "";     # fileIn migth be such as "D:/R/library/svc/", if NULL it will work on term data
 
 # usage example with a data frame 
 data(iris);
 fmc = findSvcModel( iris, MetOpt, MetLab, KernChoice, Nu, q, K, G, Cx, Cy); 
 plot(fmc);
 
-# usage example with import from textfiles
-dataTerm = findSvcModel.chargeMatrixHDD("term", fileIn="");
-fmc = findSvcModel( dataTerm, MetOpt , MetLab , KernChoice , Nu, q, K, G, Cx, Cy)
-plot(fmc);
-
-#
 }
 
 \keyword{cluster}

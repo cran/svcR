@@ -138,7 +138,7 @@ for(i in 1:NRow ){
 	}
 	#else
 	#	points(Mat[i,1], Mat[i,2], pch = 24, col = "green", bg = "yellow", cex = 1)
-}#finfori
+}#endfori
 
 # plots data numbers being SV, make SV in red
 #for(i in 1:length(ListSV) ) {				
@@ -155,7 +155,7 @@ for(i in 1: sum( ListMis[]>0 ) ){
 		ListX	= c( ListX, Mat[ ListMis[i]+1 ,1] );
 		ListY	= c( ListY, Mat[ ListMis[i]+1 ,2] );
 	} #endif
-}#finfori
+}#endfori
 points(ListX, ListY, pch = 24, col = "green", bg = "green", cex = 1);
 
 })
@@ -193,7 +193,7 @@ for(i in 1:length(MatriceVar) ){
 	cat('\n', "cluster", '\t', SortedClassPoints$x[i], '\n', file=CluOutput);
  cat("item", '\t', as.character(MatriceVar[ SortedClassPoints$ix[i] ]), '\n', file=CluOutput);
 
-} #finfori
+} #endfori
 
 cat("fichier ", '\t', path, " created -- use read.table(\"path//filename\") to load ");
 
@@ -207,24 +207,24 @@ close(CluOutput)
 ########################################################################
 
 # Usage:
-#   Summary(fmc=ret);
+#   findSvcModel.summary(x=ret);
 #
 
-setGeneric("Summary", function(fmc) standardGeneric("Summary"))
+setGeneric("findSvcModel.summary", function(x) standardGeneric("findSvcModel.summary"))
 
-setMethod("Summary", signature(fmc = "findSvcModel"),
-function(fmc=new("findSvcModel")) {
+setMethod("findSvcModel.summary", signature(x = "findSvcModel"),
+function(x=new("findSvcModel")) {
 
-Matrice		= fmc@Data		# original data matrix
-CPoints		= fmc@ClassPoints
-ListAtt		= fmc@Matrice$Att	# original data matrix
+Matrice		= x@Data		# original data matrix
+CPoints		= x@ClassPoints
+ListAtt		= x@Matrice$Att	# original data matrix
 
 NbClusters = max(CPoints);
 NbAtt	   = length( t(ListAtt) );
 
 cat("CLUSTER ID ", '\t', "SIZE", '\n');
 for(i in 0:NbClusters ){
-	SizeCluster = length( fmc@ClassPoints[ fmc@ClassPoints[] ==i ] ) ;
+	SizeCluster = length( x@ClassPoints[ x@ClassPoints[] ==i ] ) ;
 	if( i == 0 ) {
 		cat("isolated", '\t', SizeCluster, '\n');
 	} 
@@ -234,12 +234,13 @@ for(i in 0:NbClusters ){
 } #endfor
 
 cat("average attributes per cluster", '\n');
-print( c(t(fmc@Matrice$Att)) );
+print( c(t(x@Matrice$Att)) );
 for(i in 1:NbClusters ){
-	MatriceCluster = fmc@Data[  fmc@ClassPoints[] ==i  , ] ;
+	MatriceCluster = x@Data[  x@ClassPoints[] ==i  , ] ;
 	if( !is.null(nrow(MatriceCluster)) ) { cat( "cluster ", i, "\t", mean( as.data.frame(MatriceCluster[,1:NbAtt]) ) , '\n\n'); }
 	else                           { cat( "cluster ", i, "\t", MatriceCluster  , '\n\n'); }
 } #endfor
+
 
 })
 
@@ -299,7 +300,7 @@ cat("i", i, "\n");
 	cat('\n', "cluster", '\t', SortedClassPoints$x[i], '\n' );
  cat("item", '\t', as.character(MatriceVar[ SortedClassPoints$ix[i] ]), '\n' );
 
-} #finfori
+} #endfori
 
 
 })

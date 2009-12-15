@@ -34,7 +34,7 @@ Matvec  = .C("calcKernelMatrix_C",
 MatTab	= matrix(data = 0, nrow = nlin, ncol = nlin, byrow = FALSE, dimnames = NULL)
 for(i in 1:nlin ){	# we fill the full matrix
 	MatTab[i,] = Matvec[(i*nlin-nlin+1):(i*nlin)];
-}#finfori
+}#endfori
 
     return( new( "kernelMatrix", matrixKernel = Matvec, matrixK = MatTab ) )
 }

@@ -14,7 +14,7 @@ ncol = ncol(x@Matrice$Mat);
 pp   = c();
 for(i in 1:nlin ){	# we fill the full matrix
 	pp = c(pp, as.vector(x@Matrice$Mat[i,]) );
-}#finfori
+}#endfori
 
 NBClass		= max( x@ClassPoints );
 NbClassInData	= max( x@Matrice$Mat[,ncol] );
@@ -157,7 +157,7 @@ for( IndMat in 1:10 ) {
 	pp = c();
 	for(i in 1:nlin ){	# we fill the full matrix
 		pp = c(pp, as.vector(MatriceTest[i,]) );
-	}#finfori
+	}#endfori
 
 	if( cx != 0 ) {
 		MatriceMat = MatriceMat[,c(cx,cy,ncol(MatriceMat))];
@@ -262,7 +262,7 @@ Alert("", "ok", "\n");
 	pp = c();
 	for(i in 1:nlin ){	# we fill the full matrix
 		pp = c(pp, as.vector(MatriceTest[i,]) );
-	}#finfori
+	}#endfori
 
 	if( cx != 0 ) {
 		MatriceMat = MatriceMat[,c(cx,cy,ncol(MatriceMat))];
@@ -473,7 +473,7 @@ SvcEnv <- get("SvcEnv", env=globalenv(), inherits = FALSE);
 NumColClass = ncol(Mat);
 for(i in 1:nrow(Mat) ){
  cat("N=", '\t', i, "\t", "i=", Mat[i, Cx], "\t", "j=", Mat[i, Cy], "\t", "C=", ClassPoints[i], "\t", "Cdata=", Mat[i, NumColClass], '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE));
-} #finfori
+} #endfori
 
 #return(0);
 
@@ -495,7 +495,7 @@ for(i in 2:nrow(Mat) ){
 		CardLabelClass[NBClass] = 1;
 	} #endif
 
-} #finfori
+} #endfori
 
 #cat("labelclass", '\n', LabelClass, '\n', "Cardlabelclass", '\n' , CardLabelClass, file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
@@ -507,7 +507,7 @@ for( IndClass in 1:nrow(Mat) )
 for(i in 1:nrow(Mat) ){
 	L = length( ListVecClass[[ Mat[i, NumColClass] ]] );
 	ListVecClass[[ Mat[i, NumColClass] ]][L+1] = ClassPoints[i];
-} #finFor
+} #endfor
 
 #cat( "ok ok", '\n' , file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 
@@ -553,7 +553,7 @@ for( i in 1:nrow(Mat) ) {
 			} #endIf
 		} #endIf
 	}#endforIndVec
-} #finFor
+} #endfor
 
 write("ListMis \n", file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write( t(ListMis), file=get("FileOutput", env=SvcEnv, inherits = FALSE));
 

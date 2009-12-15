@@ -6,8 +6,7 @@ export(
        "findSvcModel",
        "findSvcModel.Eval",
        "findSvcModel.Test",
-       "findSvcModel.chargeMatrix",
-       "findSvcModel.chargeMatrixHDD",
+       "findSvcModel.loadMat",
        "getlagrangeCoeff",
        "getClassPoints",
        "getMatriceK",
@@ -35,7 +34,7 @@ export(
 
        ## interface
        "ExportClusters",
-       "Summary",
+       "findSvcModel.summary",
        "GetClustersTerm",
        "GetClusterID",
        "ShowClusters"
