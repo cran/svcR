@@ -54,7 +54,7 @@ SV =   .C("ListSVPoints_C",
 		as.numeric( AroundNullVA ), 
 		iListPoints = numeric( nrow(Mat) ) )$iListPoints;
 
-#cat("list des SV", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(SV), file=get("FileOutput", env=SvcEnv, inherits = FALSE)); 
+#cat("list of SV", '\n', file=get("FileOutput", env=SvcEnv, inherits = FALSE)); write(t(SV), file=get("FileOutput", env=SvcEnv, inherits = FALSE)); 
 if(  Multi )
 for(i in 1:length(SV) ) {				
 		ISV = SV[i];
@@ -195,7 +195,7 @@ for(i in 1:length(MatriceVar) ){
 
 } #endfori
 
-cat("fichier ", '\t', path, " created -- use read.table(\"path//filename\") to load ");
+cat("file ", '\t', path, " created -- use read.table(\"path//filename\") to load ");
 
 close(CluOutput)
 })
@@ -233,14 +233,84 @@ for(i in 0:NbClusters ){
 	} #endif
 } #endfor
 
-cat("average attributes per cluster", '\n');
-print( c(t(x@Matrice$Att)) );
+#selection of discrimant feature to display
+QCM <- list();
 for(i in 1:NbClusters ){
 	MatriceCluster = x@Data[  x@ClassPoints[] ==i  , ] ;
-	if( !is.null(nrow(MatriceCluster)) ) { cat( "cluster ", i, "\t", mean( as.data.frame(MatriceCluster[,1:NbAtt]) ) , '\n\n'); }
-	else                           { cat( "cluster ", i, "\t", MatriceCluster  , '\n\n'); }
+	QM  <- vector();
+	QCM[[i]]=QM;
+	if( !is.null(nrow(MatriceCluster)) ) { 
+		#cat( "cluster ", i, "  "     , '\n'); 
+		#cat( "         ", " Mean:"   , '\t'); 
+		for(j in 1:NbAtt ){
+			Q =  mean(  MatriceCluster[,j] );
+			QCM[[i]][j] = Q;
+			#print(QCM[[i]][j]);
+		} #endfor
+	} #endif
+	#A=as.list(QCM[[i]]);
+	#print ( as.numeric(QCM[[i]][j]) );
 } #endfor
+IndPert= vector();
+for(i in 1:NbAtt ){
+	ValM = 0; InOK = 0;
+	for(k in 1:NbClusters ){
+		ValM= ValM + QCM[[k]][i];
+	} #endfor
+	ValM = ValM / NbClusters;
+	for(k in 1:NbClusters ){
+		if( abs((ValM- QCM[[k]][i])/ValM)>0.5 && sum(IndPert[]!=0)<10 ) { InOK = i;};
+	} #endfor
+	IndPert[i]=InOK;
+} #endfor
+#print(IndPert);
 
+cat('\t\t\t', "most discriminant averaged attributes per cluster", '\n');
+print( c(t(x@Matrice$Att[IndPert])) );
+for(i in 1:NbClusters ){
+	MatriceCluster = x@Data[  x@ClassPoints[] ==i  , ] ;
+	if( !is.null(nrow(MatriceCluster)) ) { 
+		cat( "cluster ", i, "  "     , '\n'); 
+		cat( "         ", " Mean:"   , '\t'); 
+		for(j in IndPert ){
+			Q =  mean(  MatriceCluster[,j] );
+			if( j!=0 ){cat(  Q                         , '\t'); };
+		} #endfor
+		cat( "\n" ); 
+		cat( "         ", " 1st Qu.:"   , '\t'); 
+		for(j in IndPert ){
+			Q =  quantile(  MatriceCluster[,j] );
+			if( j!=0 ){cat(  Q[2]                         , '\t'); };
+		} #endfor
+		cat( "\n" ); 
+		cat(  "         ", " 3st Qu.:"   , '\t'); 
+		for(j in IndPert ){
+			Q =  quantile(  MatriceCluster[,j] );
+			if( j!=0 ){cat(   Q[4]                         , '\t'); };
+		} #endfor
+		cat( "\n" ); 
+		cat(  "         ", " Min:"   , '\t'); 
+		for(j in IndPert ){
+			Q =  min(  MatriceCluster[,j] );
+			if( j!=0 ){cat(   Q                         , '\t'); };
+		} #endfor
+		cat( "\n" ); 
+		cat(  "         ", " Max:"   , '\t'); 
+		for(j in IndPert ){
+			Q =  max(  MatriceCluster[,j] );
+			if( j!=0 ){cat(  Q                        , '\t'); };
+		} #endfor
+		cat( "\n" ); 
+		cat(  "         ", " Median:"   , '\t'); 
+		for(j in IndPert ){
+			Q =  median(  MatriceCluster[,j] );
+			if( j!=0 ){ cat(  Q                        , '\t'); };
+		} #endfor
+		cat( "\n" ); 
+	} #endif
+	else                           { cat( "cluster ", i, "\t", MatriceCluster  , '\n\n'); }
+	cat( "         ", '\n');
+} #endfor
 
 })
 
